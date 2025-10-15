@@ -1,0 +1,19 @@
+{
+    "candidatos": [
+        "Aluizo",
+        "Andre",
+        "Fabio",
+        "Guilherme",
+        "Lucas",
+        "Michael",
+        "Thiago",
+        "Walisson"
+    ],
+    "turnos": [
+        "1º turno",
+        "2º turno"
+    ],
+    "turno_atual": "1º turno",
+    "presentes": 120,
+    "votaram": 0
+}
