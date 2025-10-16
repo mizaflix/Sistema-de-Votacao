@@ -20,6 +20,11 @@ PADRAO_CONFIG = {
     "votaram": 0
 }
 
+@app.before_request
+def handle_head_requests():
+    if request.method == 'HEAD':
+        return '', 200
+
 
 def ler_json_seguro(path, padrao):
     """Lê um JSON e retorna padrao se vazio ou inválido."""
@@ -191,3 +196,4 @@ if __name__ == '__main__':
     inicializar_arquivos()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
