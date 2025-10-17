@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin - Eleições</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<header>Painel Administrativo - Sistema de Votação</header>
+
+<main>
+
+    <!-- === SEÇÃO RESUMO === -->
+    <section>
+        <h2>Resumo Geral</h2>
+        <div class="stats">
+            <div class="stat">Presentes: <span id="presentes">0</span></div>
+            <div class="stat">Já votaram: <span id="votaram">0</span></div>
+            <div class="stat">Faltam votar: <span id="faltam">0</span></div>
+            <div class="stat">Turno Atual: <span id="turno_atual">1º turno</span></div>
+        </div>
+    </section>
+
+    <!-- === RESULTADOS === -->
+    <section>
+        <h2>Resultados da Votação</h2>
+        <table id="tabela">
+            <thead>
+                <tr>
+                    <th>Candidato</th>
+                    <th>Votos</th>
+                    <th>% (em relação aos presentes)</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <div id="chart-container">
+            <canvas id="grafico"></canvas>
+        </div>
+    </section>
+
+    <!-- === CONFIGURAÇÕES === -->
+    <section class="config-container">
+        <h2>Configurações</h2>
+        <button class="config-toggle" onclick="toggleConfig()">
+            <img src="https://cdn-icons-png.flaticon.com/512/3524/3524659.png" alt="Configurações">
+        </button>
+
+        <div class="config-content" id="config-content">
+            <label>Candidatos (separados por vírgula)</label>
+            <textarea id="candidatos_text" rows="2"></textarea>
+
+            <label>Turnos (separados por vírgula)</label>
+            <input type="text" id="turnos_text">
+
+            <label>Turno atual</label>
+            <select id="turno_atual_select"></select>
+
+            <label>Número de pessoas presentes</label>
+            <input type="number" id="presentes_input" min="0">
+
+            <button onclick="salvarConfig()">💾 Salvar Configurações</button>
+            <button class="danger" onclick="resetarVotos()">🔄 Zerar Votos</button>
+        </div>
+    </section>
+
+</main>
+
+<footer>© 2025 Sistema de Votação - Desenvolvido por Mizael</footer>
+
+<script>
+let grafico = null;
+
+function toggleConfig() {
+    document.getElementById('config-content').classList.toggle('active');
+}
+
+async function carregarDados() {
+    const resp = await fetch('/admin/data');
+    const dados = await resp.json();
+
+    document.getElementById('presentes').textContent = dados.presentes;
+    document.getElementById('votaram').textContent = dados.votaram;
+    document.getElementById('faltam').textContent = dados.faltam;
+    document.getElementById('turno_atual').textContent = dados.turno_atual;
+
+    const tbody = document.querySelector('#tabela tbody');
+    tbody.innerHTML = '';
+    dados.candidatos.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${c}</td>
+            <td>${dados.votos[c]}</td>
+            <td>${dados.percent[c]}%</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    atualizarGrafico(dados);
+    preencherFormulario(dados);
+}
+
+function atualizarGrafico(dados) {
+    const ctx = document.getElementById('grafico').getContext('2d');
+    const labels = dados.candidatos;
+    const valores = labels.map(c => dados.percent[c]);
+
+    if (grafico) grafico.destroy();
+
+    grafico = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '% dos votos (com base nos presentes)',
+                data: valores,
+                backgroundColor: '#49886e'
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { beginAtZero: true, max: 100 }
+            }
+        }
+    });
+}
+
+function preencherFormulario(dados) {
+    document.getElementById('candidatos_text').value = dados.candidatos.join(', ');
+    document.getElementById('turnos_text').value = dados.turnos.join(', ');
+    document.getElementById('presentes_input').value = dados.presentes;
+
+    const sel = document.getElementById('turno_atual_select');
+    sel.innerHTML = '';
+    dados.turnos.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        if (t === dados.turno_atual) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+async function salvarConfig() {
+    const body = {
+        candidatos_text: document.getElementById('candidatos_text').value,
+        turnos_text: document.getElementById('turnos_text').value,
+        turno_atual: document.getElementById('turno_atual_select').value,
+        presentes: document.getElementById('presentes_input').value
+    };
+    const resp = await fetch('/admin/update_config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+    const data = await resp.json();
+    alert(data.mensagem);
+    carregarDados();
+}
+
+async function resetarVotos() {
+    if (!confirm('Tem certeza que deseja zerar todos os votos e contadores?')) return;
+    const resp = await fetch('/admin/update_config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reset_votos: true })
+    });
+    const data = await resp.json();
+    alert(data.mensagem);
+    carregarDados();
+}
+
+setInterval(carregarDados, 5000);
+carregarDados();
+</script>
+
+</body>
+</html>
