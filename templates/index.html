@@ -7,9 +7,14 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <header>
-    <h1>ELEIÇÕES - IPJARDIM</h1>
-  </header>
+   <!-- Cabeçalho -->
+    <header>
+       <div class="logo-container">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
+        </div>
+        <h1>ELEIÇÕES - IPJARDIM</h1>
+        <a href="/admin" class="admin-link">Admin</a>
+    </header>
 
   <main>
     <p id="contador">Você pode escolher até 6 candidatos (0/6)</p>
@@ -24,7 +29,6 @@
     </div>
 
     <button id="confirmar" onclick="confirmarVotos()">CONFIRMAR VOTO</button>
-    <p style="margin-top:12px;"><a href="/admin">Ir para painel admin</a></p>
   </main>
 
 <script>
@@ -47,10 +51,6 @@ function toggleVoto(nome, elemento) {
 }
 
 async function confirmarVotos() {
-  if (votosSelecionados.length === 0) {
-    alert('Selecione pelo menos um candidato!');
-    return;
-  }
   const confirmar = confirm(`Confirmar votos em: ${votosSelecionados.join(', ')}?`);
   if (!confirmar) return;
 
