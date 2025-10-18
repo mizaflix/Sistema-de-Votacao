@@ -65,6 +65,10 @@
             <button onclick="salvarConfig()">💾 Salvar Configurações</button>
             <button class="danger" onclick="resetarVotos()">🔄 Zerar Votos</button>
         </div>
+        <div id="novo-turno-container" style="display:none;">
+    <label>Candidatos do novo turno (separados por vírgula)</label>
+    <textarea id="novo_turno_candidatos" rows="2"></textarea>
+    </div>
     </section>
 
 </main>
@@ -152,6 +156,12 @@ async function salvarConfig() {
         turno_atual: document.getElementById('turno_atual_select').value,
         presentes: document.getElementById('presentes_input').value
     };
+
+    const novosTurnos = document.getElementById('novo_turno_candidatos').value.trim();
+    if (novosTurnos) {
+        body.candidatos_text = novosTurnos;
+    }
+
     const resp = await fetch('/admin/update_config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -161,6 +171,7 @@ async function salvarConfig() {
     alert(data.mensagem);
     carregarDados();
 }
+
 
 async function resetarVotos() {
     if (!confirm('Tem certeza que deseja zerar todos os votos e contadores?')) return;
@@ -173,6 +184,16 @@ async function resetarVotos() {
     alert(data.mensagem);
     carregarDados();
 }
+document.getElementById('turno_atual_select').addEventListener('change', (e) => {
+  const turnoSelecionado = e.target.value.toLowerCase();
+  const container = document.getElementById('novo-turno-container');
+  if (turnoSelecionado.includes('2º') || turnoSelecionado.includes('segundo')) {
+    container.style.display = 'block';
+  } else {
+    container.style.display = 'none';
+  }
+});
+
 
 setInterval(carregarDados, 5000);
 carregarDados();

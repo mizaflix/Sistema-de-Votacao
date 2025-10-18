@@ -21,13 +21,15 @@
 
     <div class="grid">
       {% for candidato in candidatos %}
-      <div class="card" onclick="toggleVoto('{{ candidato }}', this)">
-        <div class="foto">Foto candidato</div>
-        <p>{{ candidato }}</p>
+      <div class="card" onclick="toggleVoto('{{ candidato.nome }}', this)">
+        <img src="{{ url_for('static', filename=candidato.foto) }}" alt="{{ candidato.nome }}">
       </div>
       {% endfor %}
+      <div class="card" onclick="toggleVoto('NULO', this)">
+  <div >Voto Nulo</div>
+</div>
     </div>
-
+    <!-- Voto Nulo -->
     <button id="confirmar" onclick="confirmarVotos()">CONFIRMAR VOTO</button>
   </main>
 
@@ -51,6 +53,11 @@ function toggleVoto(nome, elemento) {
 }
 
 async function confirmarVotos() {
+  if (votosSelecionados.length === 0) {
+    alert('Selecione ao menos um candidato ou o voto NULO.');
+    return;
+  }
+
   const confirmar = confirm(`Confirmar votos em: ${votosSelecionados.join(', ')}?`);
   if (!confirmar) return;
 
@@ -61,8 +68,8 @@ async function confirmarVotos() {
   });
   const dados = await resp.json();
   alert(dados.mensagem);
+
   if (resp.ok) {
-    // limpar seleção
     votosSelecionados = [];
     document.querySelectorAll('.card').forEach(c => c.classList.remove('selecionado'));
     document.getElementById('contador').innerText = 'Você pode escolher até 6 candidatos (0/6)';

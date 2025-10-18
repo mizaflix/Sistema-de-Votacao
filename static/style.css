@@ -15,7 +15,9 @@ header {
     padding: 12px 40px;
     box-shadow: 0 3px 10px #49886e;
 }
-
+.foto{
+  height: 160px;
+}
 .logo-container {
     display: flex;
     align-items: center;
@@ -51,22 +53,29 @@ header h1 {
   gap: 12px;
   margin: 0 40px;
 }
+.nome-candidato {
+  margin-top: 10px;
+  color: #ffffff; /* ou outra cor que combine */
+  font-weight: bold;
+}
+
 
 .card {
   background-color: #3a7553;
   color: white;
-  height: 160px;
+  height: 4.5cm;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  text-align: center;
   border-radius: 8px;
   cursor: pointer;
   transition: transform 0.15s;
-  flex: 1 1 300px; /* mínimo 300px */
-  max-width: 400px;
+  flex: 1 1 200px; /* mínimo 300px */
+  max-width: 4.5cm;
   margin: 10px;
-  padding: 20px;
+  padding: 30px;
 }
 
 .card:hover { transform: scale(1.03); }
@@ -254,6 +263,34 @@ header h1 {
             font-size: 0.9em;
             margin-top: 40px;
         }
+/* Voto nulo */
+.card.nulo {
+  background-color: #3a7553;
+  color: white;
+  height: 160px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.15s;
+  flex: 1 1 300px; /* mínimo 300px */
+  max-width: 400px;
+  margin: 10px;
+  padding: 20px;
+}
+.card.nulo:hover { transform: scale(1.03); }
+.card.nulo.selecionado { border: 4px solid #1b4332; background:#40916c; }
+/* Campo de novo turno */
+#novo-turno-container {
+  margin-top: 15px;
+  background: #f5f8f5;
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow: inset 0 0 4px #cfe3d6;
+}
+
 @media (max-width: 768px) {
   body {
     font-size: 14px;

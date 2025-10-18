@@ -1,13 +1,14 @@
 {
     "candidatos": [
-        "Aluizo",
-        "Andre",
-        "Fabio",
-        "Guilherme",
-        "Lucas",
-        "Michael",
-        "Thiago",
-        "Walisson"
+        {"nome":"Aluizo"},
+        {"nome":"Andre"},
+        {"nome":"Fabio", "foto": "fabio.png"},
+        {"nome":"Guilherme"},
+        {"nome":"Lucas"},
+        {"nome":"Michael"},
+        {"nome":"Thiago O"},
+        {"nome":"Thiago R"},
+        {"nome":"Walisson"}
     ],
     "turnos": [
         "1º turno",

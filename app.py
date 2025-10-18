@@ -46,19 +46,20 @@ def ler_json_seguro(path, padrao):
 
 def inicializar_arquivos():
     config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
+    if "Voto Nulo" not in config["candidatos"]:
+        config["candidatos"].append("Voto Nulo")
     votos = ler_json_seguro(ARQ_VOTOS, {c: 0 for c in config['candidatos']})
 
+    # Ajusta estrutura
     for c in config['candidatos']:
         if c not in votos:
             votos[c] = 0
-
     to_remove = [k for k in votos if k not in config['candidatos']]
     for k in to_remove:
         votos.pop(k)
 
     with open(ARQ_VOTOS, 'w', encoding='utf-8') as f:
         json.dump(votos, f, indent=4, ensure_ascii=False)
-
     with open(ARQ_CONFIG, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=4, ensure_ascii=False)
 
@@ -168,8 +169,17 @@ def admin_update_config():
                 config['turno_atual'] = turnos[0]
 
     if 'turno_atual' in dados:
-        if dados['turno_atual'] in config.get('turnos', []):
-            config['turno_atual'] = dados['turno_atual']
+        turno_selecionado = dados['turno_atual']
+        if turno_selecionado in config.get('turnos', []):
+            config['turno_atual'] = turno_selecionado
+            # se mudou o turno, pede novos candidatos
+            if 'novos_candidatos' in dados:
+                novos = [c.strip() for c in dados['novos_candidatos'].split(',') if c.strip()]
+                if "Voto Nulo" not in novos:
+                    novos.append("Voto Nulo")
+                config['candidatos'] = novos
+                votos = {c: 0 for c in novos}
+                config['votaram'] = 0
 
     if 'candidatos_text' in dados:
         novos = [c.strip() for c in dados['candidatos_text'].split(',') if c.strip()]
@@ -196,4 +206,3 @@ if __name__ == '__main__':
     inicializar_arquivos()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
-
