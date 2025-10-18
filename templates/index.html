@@ -31,6 +31,7 @@
     </div>
     <!-- Voto Nulo -->
     <button id="confirmar" onclick="confirmarVotos()">CONFIRMAR VOTO</button>
+    <div id="toast" class="toast"></div>
   </main>
 
 <script>
@@ -67,14 +68,29 @@ async function confirmarVotos() {
     body: JSON.stringify({votos: votosSelecionados})
   });
   const dados = await resp.json();
-  alert(dados.mensagem);
+  mostrarAlerta(dados.mensagem);
+  tocarSomConfirmacao();
 
   if (resp.ok) {
     votosSelecionados = [];
     document.querySelectorAll('.card').forEach(c => c.classList.remove('selecionado'));
     document.getElementById('contador').innerText = 'Você pode escolher até 6 candidatos (0/6)';
   }
+  function tocarSomConfirmacao() {
+  const som = document.getElementById("somConfirmar");
+  som.currentTime = 0;
+  som.play();
+}
+function mostrarAlerta(mensagem, tipo = "info") {
+  const toast = document.getElementById("toast");
+  toast.textContent = mensagem;
+  toast.className = `toast mostrar ${tipo}`;
+  setTimeout(() => {
+    toast.className = "toast";
+  }, 3000);
+}
 }
 </script>
+<audio id="somConfirmar" src="{{ url_for('static', filename='voto.mp3') }}"></audio>
 </body>
 </html>

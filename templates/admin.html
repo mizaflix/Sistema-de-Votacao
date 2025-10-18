@@ -46,7 +46,7 @@
     <section class="config-container">
         <h2>Configurações</h2>
         <button class="config-toggle" onclick="toggleConfig()">
-            <img src="https://cdn-icons-png.flaticon.com/512/3524/3524659.png" alt="Configurações">
+            <img src="https://cdn-icons-png.flaticon.com/512/3524/3524659.png" id="config-btn" onclick="toggleConfig(event)" alt="Configurações">
         </button>
 
         <div class="config-content" id="config-content">
@@ -62,7 +62,7 @@
             <label>Número de pessoas presentes</label>
             <input type="number" id="presentes_input" min="0">
 
-            <button onclick="salvarConfig()">💾 Salvar Configurações</button>
+            <button id="salvarConfig">💾 Salvar Configurações</button>
             <button class="danger" onclick="resetarVotos()">🔄 Zerar Votos</button>
         </div>
         <div id="novo-turno-container" style="display:none;">
@@ -78,9 +78,6 @@
 <script>
 let grafico = null;
 
-function toggleConfig() {
-    document.getElementById('config-content').classList.toggle('active');
-}
 
 async function carregarDados() {
     const resp = await fetch('/admin/data');
@@ -193,9 +190,30 @@ document.getElementById('turno_atual_select').addEventListener('change', (e) => 
     container.style.display = 'none';
   }
 });
+// Fecha o painel somente se clicar fora dele
+document.addEventListener('click', (event) => {
+    const configContent = document.getElementById('config-content');
+    const configButton = document.getElementById('config-btn'); // o botão da engrenagem
 
+    if (!configContent.contains(event.target) && !configButton.contains(event.target)) {
+        configContent.classList.remove('active');
+    }
+});
 
-setInterval(carregarDados, 5000);
+let painelAberto = false;
+
+function toggleConfig(event) {
+    event.stopPropagation();
+    const configContent = document.getElementById('config-content');
+    configContent.classList.toggle('active');
+    painelAberto = configContent.classList.contains('active'); // 🔹 guarda estado aberto/fechado
+}
+
+setInterval(() => {
+    if (!painelAberto) {
+        carregarDados();
+    }
+}, 5000);
 carregarDados();
 </script>
 

@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify
 import json
 import os
 from pathlib import Path
+from playsound import playsound
 
 app = Flask(__name__)
 
@@ -10,7 +11,17 @@ ARQ_VOTOS = 'votos.json'
 ARQ_CONFIG = 'config.json'
 
 # Valores padrão
-PADRAO_CANDIDATOS = ['Aluizo', 'Andre', 'Fabio', 'Guilherme', 'Lucas', 'Michael', 'Thiago', 'Walisson']
+PADRAO_CANDIDATOS = [
+    {"nome": "Aluizo"},
+    {"nome": "Andre"},
+    {"nome": "Fabio"},
+    {"nome": "Guilherme"},
+    {"nome": "Lucas"},
+    {"nome": "Michael"},
+    {"nome": "Thiago O"},
+    {"nome": "Thiago R"},
+    {"nome": "Walisson"},
+]
 PADRAO_TURNOS = ['1º turno', '2º turno']
 PADRAO_CONFIG = {
     "candidatos": PADRAO_CANDIDATOS,
@@ -20,18 +31,13 @@ PADRAO_CONFIG = {
     "votaram": 0
 }
 
-@app.before_request
-def handle_head_requests():
-    if request.method == 'HEAD':
-        return '', 200
-
 
 def ler_json_seguro(path, padrao):
     """Lê um JSON e retorna padrao se vazio ou inválido."""
     if not os.path.exists(path):
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(padrao, f, indent=4, ensure_ascii=False)
-        return padrao.copy()
+        return json.loads(json.dumps(padrao))
     try:
         with open(path, 'r', encoding='utf-8') as f:
             conteudo = f.read().strip()
@@ -41,20 +47,24 @@ def ler_json_seguro(path, padrao):
     except Exception:
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(padrao, f, indent=4, ensure_ascii=False)
-        return padrao.copy()
+        return json.loads(json.dumps(padrao))
 
 
 def inicializar_arquivos():
     config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
-    if "Voto Nulo" not in config["candidatos"]:
-        config["candidatos"].append("Voto Nulo")
-    votos = ler_json_seguro(ARQ_VOTOS, {c: 0 for c in config['candidatos']})
+
+    # Garante que "Voto Nulo" exista
+    if not any(c['nome'] == "Voto Nulo" for c in config["candidatos"]):
+        config["candidatos"].append({"nome": "Voto Nulo"})
+
+    nomes = [c['nome'] for c in config["candidatos"]]
+    votos = ler_json_seguro(ARQ_VOTOS, {n: 0 for n in nomes})
 
     # Ajusta estrutura
-    for c in config['candidatos']:
-        if c not in votos:
-            votos[c] = 0
-    to_remove = [k for k in votos if k not in config['candidatos']]
+    for n in nomes:
+        if n not in votos:
+            votos[n] = 0
+    to_remove = [k for k in votos if k not in nomes]
     for k in to_remove:
         votos.pop(k)
 
@@ -82,7 +92,7 @@ def votar():
         return jsonify({'mensagem': 'Você só pode votar em até 6 candidatos!'}), 400
 
     config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
-    candidatos_validos = config['candidatos']
+    candidatos_validos = [c['nome'] for c in config['candidatos']]
     votos = ler_json_seguro(ARQ_VOTOS, {c: 0 for c in candidatos_validos})
 
     invalidados = []
@@ -92,7 +102,6 @@ def votar():
         else:
             invalidados.append(v)
 
-    # Incrementa contador de pessoas que votaram
     config['votaram'] = config.get('votaram', 0) + 1
 
     with open(ARQ_VOTOS, 'w', encoding='utf-8') as f:
@@ -109,7 +118,9 @@ def votar():
 
 @app.route('/resultados', methods=['GET'])
 def resultados():
-    votos = ler_json_seguro(ARQ_VOTOS, {c: 0 for c in PADRAO_CANDIDATOS})
+    config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
+    nomes = [c['nome'] for c in config['candidatos']]
+    votos = ler_json_seguro(ARQ_VOTOS, {n: 0 for n in nomes})
     return jsonify(votos)
 
 
@@ -122,18 +133,18 @@ def admin_page():
 @app.route('/admin/data', methods=['GET'])
 def admin_data():
     config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
-    votos = ler_json_seguro(ARQ_VOTOS, {c: 0 for c in config['candidatos']})
+    nomes = [c['nome'] for c in config['candidatos']]
+    votos = ler_json_seguro(ARQ_VOTOS, {n: 0 for n in nomes})
+
     presentes = config.get('presentes', 0)
     votaram = config.get('votaram', 0)
     faltam = max(presentes - votaram, 0)
 
     percent = {}
-    for c in config['candidatos']:
-        if presentes > 0:
-            pct = (votos.get(c, 0) / presentes) * 100
-        else:
-            pct = 0
-        percent[c] = round(pct, 2)
+    for n in nomes:
+        pct = (votos.get(n, 0) / presentes * 100) if presentes > 0 else 0
+        percent[n] = round(pct, 2)
+
     total = sum(votos.values())
 
     return jsonify({
@@ -142,7 +153,7 @@ def admin_data():
         "faltam": faltam,
         "turnos": config.get('turnos', []),
         "turno_atual": config.get('turno_atual', ''),
-        "candidatos": config['candidatos'],
+        "candidatos": nomes,
         "votos": votos,
         "total_votos": total,
         "percent": percent
@@ -153,14 +164,18 @@ def admin_data():
 def admin_update_config():
     dados = request.get_json(force=True)
     config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
-    votos = ler_json_seguro(ARQ_VOTOS, {c: 0 for c in config['candidatos']})
 
+    nomes = [c['nome'] for c in config['candidatos']]
+    votos = ler_json_seguro(ARQ_VOTOS, {n: 0 for n in nomes})
+
+    # Atualiza presentes
     if 'presentes' in dados:
         try:
             config['presentes'] = int(dados['presentes'])
         except Exception:
             pass
 
+    # Atualiza turnos
     if 'turnos_text' in dados:
         turnos = [t.strip() for t in dados['turnos_text'].split(',') if t.strip()]
         if turnos:
@@ -168,33 +183,31 @@ def admin_update_config():
             if config.get('turno_atual') not in turnos:
                 config['turno_atual'] = turnos[0]
 
+    # Atualiza turno atual
     if 'turno_atual' in dados:
         turno_selecionado = dados['turno_atual']
         if turno_selecionado in config.get('turnos', []):
             config['turno_atual'] = turno_selecionado
-            # se mudou o turno, pede novos candidatos
-            if 'novos_candidatos' in dados:
-                novos = [c.strip() for c in dados['novos_candidatos'].split(',') if c.strip()]
-                if "Voto Nulo" not in novos:
-                    novos.append("Voto Nulo")
-                config['candidatos'] = novos
-                votos = {c: 0 for c in novos}
-                config['votaram'] = 0
 
+    # Atualiza candidatos
     if 'candidatos_text' in dados:
         novos = [c.strip() for c in dados['candidatos_text'].split(',') if c.strip()]
         if novos:
-            novos_votos = {c: votos.get(c, 0) for c in novos}
-            with open(ARQ_VOTOS, 'w', encoding='utf-8') as f:
-                json.dump(novos_votos, f, indent=4, ensure_ascii=False)
-            config['candidatos'] = novos
+            novos_formatados = [{"nome": n} for n in novos]
+            if not any(c['nome'] == "Voto Nulo" for c in novos_formatados):
+                novos_formatados.append({"nome": "Voto Nulo"})
+            config['candidatos'] = novos_formatados
+            votos = {n['nome']: 0 for n in novos_formatados}
+            config['votaram'] = 0
 
+    # Resetar votos
     if dados.get('reset_votos'):
-        zeros = {c: 0 for c in config['candidatos']}
-        with open(ARQ_VOTOS, 'w', encoding='utf-8') as f:
-            json.dump(zeros, f, indent=4, ensure_ascii=False)
-        config['votaram'] = 0  # também reseta contagem de quem votou
+        votos = {c['nome']: 0 for c in config['candidatos']}
+        config['votaram'] = 0
 
+    # Salva arquivos
+    with open(ARQ_VOTOS, 'w', encoding='utf-8') as f:
+        json.dump(votos, f, indent=4, ensure_ascii=False)
     with open(ARQ_CONFIG, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=4, ensure_ascii=False)
 
@@ -202,7 +215,6 @@ def admin_update_config():
 
 
 if __name__ == '__main__':
-    import os
     inicializar_arquivos()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)

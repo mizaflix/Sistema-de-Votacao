@@ -290,6 +290,43 @@ header h1 {
   padding: 10px;
   box-shadow: inset 0 0 4px #cfe3d6;
 }
+.toast {
+  visibility: hidden;
+  min-width: 280px;
+  background-color: #1d3557;
+  color: #fff;
+  text-align: center;
+  border-radius: 8px;
+  padding: 14px 16px;
+  position: fixed;
+  z-index: 1000;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  font-weight: 500;
+  font-size: 16px;
+  opacity: 0;
+  transition: opacity 0.5s, bottom 0.5s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.toast.mostrar {
+  visibility: visible;
+  opacity: 1;
+  bottom: 60px;
+}
+
+.toast.sucesso {
+  background-color: #2a9d8f;
+}
+
+.toast.erro {
+  background-color: #e63946;
+}
+
+.toast.info {
+  background-color: #457b9d;
+}
 
 @media (max-width: 768px) {
   body {
