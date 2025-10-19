@@ -22,7 +22,7 @@
     <div class="grid">
       {% for candidato in candidatos %}
       <div class="card" onclick="toggleVoto('{{ candidato.nome }}', this)">
-        <img src="{{ url_for('static', filename=candidato.foto) }}" alt="{{ candidato.nome }}">
+        <img class="foto" src="{{ url_for('static', filename=candidato.foto) }}" alt="{{ candidato.nome }}">
       </div>
       {% endfor %}
       <div class="card" onclick="toggleVoto('NULO', this)">

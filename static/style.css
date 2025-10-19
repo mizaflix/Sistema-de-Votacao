@@ -15,9 +15,6 @@ header {
     padding: 12px 40px;
     box-shadow: 0 3px 10px #49886e;
 }
-.foto{
-  height: 160px;
-}
 .logo-container {
     display: flex;
     align-items: center;
@@ -59,7 +56,10 @@ header h1 {
   font-weight: bold;
 }
 
-
+.foto{
+  height: 4.2cm;
+  width: 4.2cm;
+}
 .card {
   background-color: #3a7553;
   color: white;
@@ -326,6 +326,23 @@ header h1 {
 
 .toast.info {
   background-color: #457b9d;
+}
+
+.turno-section, .turno-extra, .presenca-section {
+  margin-top: 10px;
+}
+
+.hint {
+  display: block;
+  font-size: 0.8em;
+  color: #666;
+  margin-top: 3px;
+}
+
+.botoes-config {
+  margin-top: 15px;
+  display: flex;
+  gap: 10px;
 }
 
 @media (max-width: 768px) {

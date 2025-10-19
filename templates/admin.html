@@ -56,19 +56,28 @@
             <label>Turnos (separados por vírgula)</label>
             <input type="text" id="turnos_text">
 
-            <label>Turno atual</label>
-            <select id="turno_atual_select"></select>
+            <div class="turno-section">
+  <label for="turno_atual_select">Turno Atual</label>
+  <select id="turno_atual_select"></select>
+  <small class="hint">Ao mudar o turno, os dados atuais são salvos automaticamente.</small>
+</div>
 
-            <label>Número de pessoas presentes</label>
-            <input type="number" id="presentes_input" min="0">
+<div class="turno-extra" id="novo-turno-container" style="display:none;">
+  <label for="novo_turno_candidatos">Candidatos do 2º Turno</label>
+  <textarea id="novo_turno_candidatos" rows="2" placeholder="Ex: Candidato A, Candidato B"></textarea>
+  <small class="hint">Esses candidatos substituem os do 1º turno.</small>
+</div>
 
-            <button id="salvarConfig">💾 Salvar Configurações</button>
-            <button class="danger" onclick="resetarVotos()">🔄 Zerar Votos</button>
-        </div>
-        <div id="novo-turno-container" style="display:none;">
-    <label>Candidatos do novo turno (separados por vírgula)</label>
-    <textarea id="novo_turno_candidatos" rows="2"></textarea>
-    </div>
+<div class="presenca-section">
+  <label for="presentes_input">👥 Pessoas Presentes</label>
+  <input type="number" id="presentes_input" min="0">
+</div>
+
+<div class="botoes-config">
+  <button id="salvarConfig">💾 Salvar Configurações</button>
+  <button class="danger" onclick="resetarVotos()">🔄 Zerar Votos</button>
+</div>
+
     </section>
 
 </main>
@@ -181,40 +190,143 @@ async function resetarVotos() {
     alert(data.mensagem);
     carregarDados();
 }
-document.getElementById('turno_atual_select').addEventListener('change', (e) => {
-  const turnoSelecionado = e.target.value.toLowerCase();
-  const container = document.getElementById('novo-turno-container');
-  if (turnoSelecionado.includes('2º') || turnoSelecionado.includes('segundo')) {
-    container.style.display = 'block';
-  } else {
-    container.style.display = 'none';
-  }
-});
-// Fecha o painel somente se clicar fora dele
-document.addEventListener('click', (event) => {
-    const configContent = document.getElementById('config-content');
-    const configButton = document.getElementById('config-btn'); // o botão da engrenagem
+// ================== GERENCIAMENTO DE TURNOS ==================
+let dadosPorTurno = {}; // Armazena localmente os dados de cada turno
+let turnoAtualSelecionado = null;
 
-    if (!configContent.contains(event.target) && !configButton.contains(event.target)) {
-        configContent.classList.remove('active');
+// 🔹 Salva localmente o estado de um turno
+function salvarTurnoLocal(turno, dados) {
+  dadosPorTurno[turno] = JSON.parse(JSON.stringify(dados));
+  localStorage.setItem("dadosPorTurno", JSON.stringify(dadosPorTurno));
+}
+
+// 🔹 Carrega os dados salvos de um turno
+function carregarTurnoLocal(turno) {
+  const local = JSON.parse(localStorage.getItem("dadosPorTurno") || "{}");
+  return local[turno] || null;
+}
+
+// 🔹 Inicializa o controle de turnos ao abrir o painel
+async function iniciarTurnos() {
+  await carregarDados(); // primeiro busca do backend
+  const turnoInicial = document.getElementById("turno_atual_select").value;
+  turnoAtualSelecionado = turnoInicial;
+
+  // Se ainda não existe salvo localmente, salvar o 1º turno como base
+  const locais = JSON.parse(localStorage.getItem("dadosPorTurno") || "{}");
+  if (!locais[turnoInicial]) {
+    const dadosAtuais = {
+      candidatos: document
+        .getElementById("candidatos_text")
+        .value.split(",")
+        .map((c) => c.trim()),
+      presentes: document.getElementById("presentes_input").value,
+    };
+    salvarTurnoLocal(turnoInicial, dadosAtuais);
+  }
+}
+
+// 🔹 Quando o usuário troca o turno manualmente
+document
+  .getElementById("turno_atual_select")
+  .addEventListener("change", (e) => {
+    const turnoSelecionado = e.target.value;
+    const container = document.getElementById("novo-turno-container");
+
+    // Salva o turno atual antes de trocar
+    if (turnoAtualSelecionado) {
+      const dadosAtuais = {
+        candidatos: document
+          .getElementById("candidatos_text")
+          .value.split(",")
+          .map((c) => c.trim()),
+        presentes: document.getElementById("presentes_input").value,
+      };
+      salvarTurnoLocal(turnoAtualSelecionado, dadosAtuais);
     }
+
+    // Atualiza o turno selecionado
+    turnoAtualSelecionado = turnoSelecionado;
+
+    // Exibe ou oculta o campo do 2º turno
+    if (
+      turnoSelecionado.toLowerCase().includes("2º") ||
+      turnoSelecionado.toLowerCase().includes("segundo")
+    ) {
+      container.style.display = "block";
+    } else {
+      container.style.display = "none";
+    }
+
+    // Carrega os dados locais se existirem
+    const dadosSalvos = carregarTurnoLocal(turnoSelecionado);
+    if (dadosSalvos) {
+      document.getElementById("candidatos_text").value =
+        dadosSalvos.candidatos.join(", ");
+      document.getElementById("presentes_input").value =
+        dadosSalvos.presentes || 0;
+      mostrarAviso(`✅ Dados do ${turnoSelecionado} restaurados.`);
+    } else {
+      carregarDados();
+      mostrarAviso(`📊 Carregando dados do servidor para ${turnoSelecionado}...`);
+    }
+  });
+
+// ================== FUNÇÕES DE INTERFACE ==================
+document.addEventListener("click", (event) => {
+  const configContent = document.getElementById("config-content");
+  const configButton = document.getElementById("config-btn");
+
+  if (!configContent.contains(event.target) && !configButton.contains(event.target)) {
+    configContent.classList.remove("active");
+  }
 });
 
 let painelAberto = false;
 
 function toggleConfig(event) {
-    event.stopPropagation();
-    const configContent = document.getElementById('config-content');
-    configContent.classList.toggle('active');
-    painelAberto = configContent.classList.contains('active'); // 🔹 guarda estado aberto/fechado
+  event.stopPropagation();
+  const configContent = document.getElementById("config-content");
+  configContent.classList.toggle("active");
+  painelAberto = configContent.classList.contains("active");
 }
 
+// Atualiza o gráfico a cada 5s se o painel estiver fechado
 setInterval(() => {
-    if (!painelAberto) {
-        carregarDados();
-    }
+  if (!painelAberto) {
+    carregarDados();
+  }
 }, 5000);
-carregarDados();
+
+
+// Exibe uma mensagem estilizada
+function mostrarAviso(texto) {
+  let aviso = document.createElement("div");
+  aviso.textContent = texto;
+  aviso.style.position = "fixed";
+  aviso.style.bottom = "20px";
+  aviso.style.right = "20px";
+  aviso.style.background = "#49886e";
+  aviso.style.color = "white";
+  aviso.style.padding = "10px 20px";
+  aviso.style.borderRadius = "8px";
+  aviso.style.boxShadow = "0 2px 6px rgba(0,0,0,0.3)";
+  aviso.style.fontSize = "15px";
+  aviso.style.zIndex = "9999";
+  aviso.style.opacity = "0";
+  aviso.style.transition = "opacity 0.5s ease";
+
+  document.body.appendChild(aviso);
+  setTimeout(() => (aviso.style.opacity = "1"), 50);
+  setTimeout(() => {
+    aviso.style.opacity = "0";
+    setTimeout(() => aviso.remove(), 500);
+  }, 2500);
+}
+
+// Inicia tudo
+document.getElementById("salvarConfig").addEventListener("click", salvarConfig);
+iniciarTurnos();
 </script>
 
 </body>

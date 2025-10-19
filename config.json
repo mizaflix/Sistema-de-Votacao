@@ -7,8 +7,7 @@
             "nome": "Andre"
         },
         {
-            "nome": "Fabio",
-            "foto": "fabio.png"
+            "nome": "Fabio"
         },
         {
             "nome": "Guilherme"
@@ -27,6 +26,9 @@
         },
         {
             "nome": "Walisson"
+        },
+        {
+            "nome": "Voto Nulo"
         }
     ],
     "turnos": [
@@ -35,5 +37,5 @@
     ],
     "turno_atual": "1º turno",
     "presentes": 120,
-    "votaram": 10
+    "votaram": 0
 }
