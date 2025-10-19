@@ -1,31 +1,40 @@
 {
     "candidatos": [
         {
-            "nome": "Aluizo"
+            "nome": "Aluizo",
+            "foto": "aluizo.png"
         },
         {
-            "nome": "Andre"
+            "nome": "Andre",
+            "foto": "andre.png"
         },
         {
-            "nome": "Fabio"
+            "nome": "Fabio",
+            "foto": "fabio.png"
         },
         {
-            "nome": "Guilherme"
+            "nome": "Guilherme",
+            "foto": "guilherme.png"
         },
         {
-            "nome": "Lucas"
+            "nome": "Lucas",
+            "foto": "lucas.png"
         },
         {
-            "nome": "Michael"
+            "nome": "Michael",
+            "foto": "michael.png"
         },
         {
-            "nome": "Thiago O"
+            "nome": "Thiago O",
+            "foto": "thiagoo.png"
         },
         {
-            "nome": "Thiago R"
+            "nome": "Thiago R",
+            "foto": "thiagor.png"
         },
         {
-            "nome": "Walisson"
+            "nome": "Walisson",
+            "foto": "walisson.png"
         },
         {
             "nome": "Voto Nulo"
@@ -38,4 +47,5 @@
     "turno_atual": "1º turno",
     "presentes": 120,
     "votaram": 0
+
 }
