@@ -128,34 +128,37 @@ def admin_page():
     return render_template('admin.html', config=config)
 
 
-@app.route('/admin/data', methods=['GET'])
+@app.route('/admin/data')
 def admin_data():
     config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
-    nomes = [c['nome'] for c in config['candidatos']]
-    votos = ler_json_seguro(ARQ_VOTOS, {n: 0 for n in nomes})
+    votos_por_turno = ler_json_seguro(ARQ_VOTOS, {t: {} for t in config.get('turnos', ["1º Turno","2º Turno","3º Turno"])})
+
+    turno_atual = config.get('turno_atual', config.get('turnos', ["1º Turno"])[0])
+    candidatos_do_turno = config.get('candidatos_por_turno', {}).get(turno_atual, [])
+    votos_do_turno = votos_por_turno.get(turno_atual, {c: 0 for c in candidatos_do_turno})
 
     presentes = config.get('presentes', 0)
     votaram = config.get('votaram', 0)
-    faltam = max(presentes - votaram, 0)
+    faltam = max(0, presentes - votaram)
 
+    # calcula percentuais (com base nos presentes)
     percent = {}
-    for n in nomes:
-        pct = (votos.get(n, 0) / presentes * 100) if presentes > 0 else 0
-        percent[n] = round(pct, 2)
+    for c in candidatos_do_turno:
+        percent[c] = round((votos_do_turno.get(c, 0) / presentes * 100) if presentes else 0, 2)
 
-    total = sum(votos.values())
+    resp = {
+        'presentes': presentes,
+        'votaram': votaram,
+        'faltam': faltam,
+        'turno_atual': turno_atual,
+        'turnos': config.get('turnos', []),
+        'candidatos': candidatos_do_turno,
+        'votos': votos_do_turno,
+        'percent': percent,
+        'candidatos_por_turno': config.get('candidatos_por_turno', {})
+    }
+    return jsonify(resp)
 
-    return jsonify({
-        "presentes": presentes,
-        "votaram": votaram,
-        "faltam": faltam,
-        "turnos": config.get('turnos', []),
-        "turno_atual": config.get('turno_atual', ''),
-        "candidatos": nomes,
-        "votos": votos,
-        "total_votos": total,
-        "percent": percent
-    })
 
 
 @app.route('/admin/update_config', methods=['POST'])
@@ -163,53 +166,90 @@ def admin_update_config():
     dados = request.get_json(force=True)
     config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
 
-    nomes = [c['nome'] for c in config['candidatos']]
-    votos = ler_json_seguro(ARQ_VOTOS, {n: 0 for n in nomes})
+    # --- Inicializa 3 turnos fixos ---
+    turnos_padrao = ["1º Turno", "2º Turno", "3º Turno"]
+    config.setdefault('turnos', turnos_padrao)
+    config.setdefault('turno_atual', turnos_padrao[0])
 
-    # Atualiza presentes
+    # --- Garantir estrutura candidatos_por_turno no config ---
+    config.setdefault('candidatos_por_turno', {})
+    # Se não existir, popula 1º turno com config['candidatos'] (se houver) ou vazio
+    if not config['candidatos_por_turno'].get(turnos_padrao[0]):
+        if config.get('candidatos'):
+            config['candidatos_por_turno'][turnos_padrao[0]] = [c['nome'] for c in config['candidatos']]
+        else:
+            config['candidatos_por_turno'][turnos_padrao[0]] = [n for n in PADRAO_CANDIDATOS] if 'PADRAO_CANDIDATOS' in globals() else []
+
+    for t in turnos_padrao:
+        config['candidatos_por_turno'].setdefault(t, [])
+
+    # Lê votos organizados por turno
+    votos_por_turno = ler_json_seguro(ARQ_VOTOS, {t: {} for t in turnos_padrao})
+    for t in turnos_padrao:
+        votos_por_turno.setdefault(t, {})
+
+    # Garante que todos os candidatos existam nas contagens de votos (para o turno atual)
+    turno_atual = config['turno_atual']
+    nomes_turno_atual = config['candidatos_por_turno'].get(turno_atual, [])
+    for n in nomes_turno_atual:
+        votos_por_turno[turno_atual].setdefault(n, 0)
+
+    # --- Atualiza presentes ---
     if 'presentes' in dados:
         try:
             config['presentes'] = int(dados['presentes'])
         except Exception:
             pass
 
-    # Atualiza turnos
+    # --- Atualiza turnos se fornecido (mantém padrão se vazio) ---
     if 'turnos_text' in dados:
         turnos = [t.strip() for t in dados['turnos_text'].split(',') if t.strip()]
         if turnos:
             config['turnos'] = turnos
+            # garante candidatos_por_turno para cada novo turno
+            for t in turnos:
+                config['candidatos_por_turno'].setdefault(t, [])
             if config.get('turno_atual') not in turnos:
                 config['turno_atual'] = turnos[0]
 
-    # Atualiza turno atual
+    # --- Atualiza turno atual ---
     if 'turno_atual' in dados:
         turno_selecionado = dados['turno_atual']
         if turno_selecionado in config.get('turnos', []):
             config['turno_atual'] = turno_selecionado
 
-    # Atualiza candidatos
+    # --- Atualiza candidatos ---
+    # Fluxo: se receber candidatos_text + campo turno_for_candidates -> atualiza apenas esse turno.
+    # Se receber apenas candidatos_text sem turno_for_candidates, trata como "candidatos do 1º turno / padrão".
     if 'candidatos_text' in dados:
-        novos = [c.strip() for c in dados['candidatos_text'].split(',') if c.strip()]
-        if novos:
-            novos_formatados = [{"nome": n} for n in novos]
-            if not any(c['nome'] == "Voto Nulo" for c in novos_formatados):
-                novos_formatados.append({"nome": "Voto Nulo"})
-            config['candidatos'] = novos_formatados
-            votos = {n['nome']: 0 for n in novos_formatados}
-            config['votaram'] = 0
-
-    # Resetar votos
-    if dados.get('reset_votos'):
-        votos = {c['nome']: 0 for c in config['candidatos']}
+        texto = dados['candidatos_text']
+        lista = [c.strip() for c in texto.split(',') if c.strip()]
+        # garante "Voto Nulo"
+        if not any(x.lower() == "voto nulo" for x in lista):
+            lista.append("Voto Nulo")
+        # determina qual turno atualizar
+        alvo = dados.get('turno_for_candidates') or config.get('turno_atual') or turnos_padrao[0]
+        # atualiza candidatos do turno alvo
+        config['candidatos_por_turno'][alvo] = lista
+        # reseta contagem desse turno (opcional: manter vies — aqui zera para evitar inconsistência)
+        votos_por_turno[alvo] = {n: 0 for n in lista}
         config['votaram'] = 0
 
-    # Salva arquivos
+    # --- Resetar votos (zera todos os turnos) ---
+    if dados.get('reset_votos'):
+        for turno in config['turnos']:
+            candidatos = config['candidatos_por_turno'].get(turno, [])
+            votos_por_turno[turno] = {c: 0 for c in candidatos}
+        config['votaram'] = 0
+
+    # --- Salva alterações ---
     with open(ARQ_VOTOS, 'w', encoding='utf-8') as f:
-        json.dump(votos, f, indent=4, ensure_ascii=False)
+        json.dump(votos_por_turno, f, indent=4, ensure_ascii=False)
     with open(ARQ_CONFIG, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=4, ensure_ascii=False)
 
     return jsonify({'mensagem': 'Configurações atualizadas com sucesso.'})
+
 
 
 if __name__ == '__main__':

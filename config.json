@@ -1,4 +1,11 @@
 {
+    "turnos": [
+        "1º Turno",
+        "2º Turno",
+        "3º Turno"
+    ],
+    "turno_atual": "1º Turno",
+    "presentes": 120,
     "candidatos": [
         {
             "nome": "Aluizo",
@@ -35,17 +42,27 @@
         {
             "nome": "Walisson",
             "foto": "walisson.png"
-        },
-        {
-            "nome": "Voto Nulo"
         }
     ],
-    "turnos": [
-        "1º turno",
-        "2º turno"
-    ],
-    "turno_atual": "1º turno",
-    "presentes": 120,
-    "votaram": 0
-
+    "votaram": 0,
+    "candidatos_por_turno": {
+        "1º Turno": [
+            "Aluizo",
+            "Andre",
+            "Fabio",
+            "Guilherme",
+            "Lucas",
+            "Michael",
+            "Thiago O",
+            "Thiago R",
+            "Walisson"
+        ],
+        "2º Turno": [
+            "Lucas",
+            "Thiago O",
+            "Thiago R",
+            "Voto Nulo"
+        ],
+        "3º Turno": []
+    }
 }

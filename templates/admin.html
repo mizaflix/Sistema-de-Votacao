@@ -9,7 +9,12 @@
 </head>
 <body>
 
-<header class="header-admin">Painel Administrativo - Sistema de Votação</header>
+<header>
+       <div class="logo-container">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
+        </div>
+        <h1>Painel Administrativo - Sistema de Votação</h1>
+    </header>
 
 <main>
 
@@ -87,7 +92,6 @@
 <script>
 let grafico = null;
 
-
 async function carregarDados() {
     const resp = await fetch('/admin/data');
     const dados = await resp.json();
@@ -103,8 +107,8 @@ async function carregarDados() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${c}</td>
-            <td>${dados.votos[c]}</td>
-            <td>${dados.percent[c]}%</td>
+            <td>${dados.votos[c] || 0}</td>
+            <td>${dados.percent[c] || 0}%</td>
         `;
         tbody.appendChild(tr);
     });
@@ -116,7 +120,7 @@ async function carregarDados() {
 function atualizarGrafico(dados) {
     const ctx = document.getElementById('grafico').getContext('2d');
     const labels = dados.candidatos;
-    const valores = labels.map(c => dados.percent[c]);
+    const valores = labels.map(c => dados.percent[c] || 0);
 
     if (grafico) grafico.destroy();
 
@@ -140,10 +144,12 @@ function atualizarGrafico(dados) {
 }
 
 function preencherFormulario(dados) {
-    document.getElementById('candidatos_text').value = dados.candidatos.join(', ');
+    // campos globais
+    document.getElementById('candidatos_text').value = (dados.candidatos_por_turno && dados.candidatos_por_turno[dados.turnos[0]]) ? dados.candidatos_por_turno[dados.turnos[0]].join(', ') : dados.candidatos.join(', ');
     document.getElementById('turnos_text').value = dados.turnos.join(', ');
     document.getElementById('presentes_input').value = dados.presentes;
 
+    // select de turnos
     const sel = document.getElementById('turno_atual_select');
     sel.innerHTML = '';
     dados.turnos.forEach(t => {
@@ -153,19 +159,42 @@ function preencherFormulario(dados) {
         if (t === dados.turno_atual) opt.selected = true;
         sel.appendChild(opt);
     });
+
+    // preenche o textarea do turno específico (se existir)
+    const turnoAtual = dados.turno_atual;
+    const perTurnoArea = document.getElementById('novo_turno_candidatos');
+    if (dados.candidatos_por_turno && dados.candidatos_por_turno[turnoAtual]) {
+        perTurnoArea.value = dados.candidatos_por_turno[turnoAtual].join(', ');
+    } else {
+        perTurnoArea.value = '';
+    }
+
+    // controla visibilidade do campo do turno específico
+    atualizarVisibilidadeCampoTurno(sel.value);
 }
 
 async function salvarConfig() {
+    const turnoSelecionado = document.getElementById('turno_atual_select').value;
+
+    // Monta corpo base
     const body = {
-        candidatos_text: document.getElementById('candidatos_text').value,
         turnos_text: document.getElementById('turnos_text').value,
-        turno_atual: document.getElementById('turno_atual_select').value,
+        turno_atual: turnoSelecionado,
         presentes: document.getElementById('presentes_input').value
     };
 
-    const novosTurnos = document.getElementById('novo_turno_candidatos').value.trim();
-    if (novosTurnos) {
-        body.candidatos_text = novosTurnos;
+    // Se for 1º turno: atualiza candidatos "padrão" com campo candidatos_text
+    const primeiroTurno = document.getElementById('turno_atual_select').options[0].value;
+    if (turnoSelecionado === primeiroTurno) {
+        body.candidatos_text = document.getElementById('candidatos_text').value;
+        // não precisa de turno_for_candidates (será usado para 1º turno/padrão)
+    } else {
+        // se tiver candidatos específicos preenchidos no campo do turno selecionado, envia apenas para esse turno
+        const candidatosDoTurno = document.getElementById('novo_turno_candidatos').value.trim();
+        if (candidatosDoTurno) {
+            body.candidatos_text = candidatosDoTurno;
+            body.turno_for_candidates = turnoSelecionado;
+        }
     }
 
     const resp = await fetch('/admin/update_config', {
@@ -178,9 +207,8 @@ async function salvarConfig() {
     carregarDados();
 }
 
-
 async function resetarVotos() {
-    if (!confirm('Tem certeza que deseja zerar todos os votos e contadores?')) return;
+    if (!confirm('Tem certeza que deseja zerar TODOS os votos de todos os turnos?')) return;
     const resp = await fetch('/admin/update_config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -190,87 +218,32 @@ async function resetarVotos() {
     alert(data.mensagem);
     carregarDados();
 }
-// ================== GERENCIAMENTO DE TURNOS ==================
-let dadosPorTurno = {}; // Armazena localmente os dados de cada turno
-let turnoAtualSelecionado = null;
 
-// 🔹 Salva localmente o estado de um turno
-function salvarTurnoLocal(turno, dados) {
-  dadosPorTurno[turno] = JSON.parse(JSON.stringify(dados));
-  localStorage.setItem("dadosPorTurno", JSON.stringify(dadosPorTurno));
-}
-
-// 🔹 Carrega os dados salvos de um turno
-function carregarTurnoLocal(turno) {
-  const local = JSON.parse(localStorage.getItem("dadosPorTurno") || "{}");
-  return local[turno] || null;
-}
-
-// 🔹 Inicializa o controle de turnos ao abrir o painel
-async function iniciarTurnos() {
-  await carregarDados(); // primeiro busca do backend
-  const turnoInicial = document.getElementById("turno_atual_select").value;
-  turnoAtualSelecionado = turnoInicial;
-
-  // Se ainda não existe salvo localmente, salvar o 1º turno como base
-  const locais = JSON.parse(localStorage.getItem("dadosPorTurno") || "{}");
-  if (!locais[turnoInicial]) {
-    const dadosAtuais = {
-      candidatos: document
-        .getElementById("candidatos_text")
-        .value.split(",")
-        .map((c) => c.trim()),
-      presentes: document.getElementById("presentes_input").value,
-    };
-    salvarTurnoLocal(turnoInicial, dadosAtuais);
-  }
-}
-
-// 🔹 Quando o usuário troca o turno manualmente
-document
-  .getElementById("turno_atual_select")
-  .addEventListener("change", (e) => {
-    const turnoSelecionado = e.target.value;
-    const container = document.getElementById("novo-turno-container");
-
-    // Salva o turno atual antes de trocar
-    if (turnoAtualSelecionado) {
-      const dadosAtuais = {
-        candidatos: document
-          .getElementById("candidatos_text")
-          .value.split(",")
-          .map((c) => c.trim()),
-        presentes: document.getElementById("presentes_input").value,
-      };
-      salvarTurnoLocal(turnoAtualSelecionado, dadosAtuais);
-    }
-
-    // Atualiza o turno selecionado
-    turnoAtualSelecionado = turnoSelecionado;
-
-    // Exibe ou oculta o campo do 2º turno
-    if (
-      turnoSelecionado.toLowerCase().includes("2º") ||
-      turnoSelecionado.toLowerCase().includes("segundo")
-    ) {
-      container.style.display = "block";
+// ----------------- Gerenciamento de visibilidade do campo de candidatos por turno -----------------
+function atualizarVisibilidadeCampoTurno(turnoSelecionado) {
+    const primeiroTurno = document.getElementById('turno_atual_select').options[0].value;
+    const container = document.getElementById('novo-turno-container');
+    if (turnoSelecionado !== primeiroTurno) {
+        container.style.display = 'block';
     } else {
-      container.style.display = "none";
+        container.style.display = 'none';
     }
+}
 
-    // Carrega os dados locais se existirem
-    const dadosSalvos = carregarTurnoLocal(turnoSelecionado);
-    if (dadosSalvos) {
-      document.getElementById("candidatos_text").value =
-        dadosSalvos.candidatos.join(", ");
-      document.getElementById("presentes_input").value =
-        dadosSalvos.presentes || 0;
-      mostrarAviso(`✅ Dados do ${turnoSelecionado} restaurados.`);
-    } else {
-      carregarDados();
-      mostrarAviso(`📊 Carregando dados do servidor para ${turnoSelecionado}...`);
-    }
-  });
+// Ao trocar de turno no select: atualiza turno no backend e carrega candidatos daquele turno
+document.getElementById('turno_atual_select').addEventListener('change', async (e) => {
+    const turno = e.target.value;
+    // informa o backend qual é o turno atual
+    await fetch('/admin/update_config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ turno_atual: turno })
+    });
+    atualizarVisibilidadeCampoTurno(turno);
+    // recarrega dados para preencher o campo de candidatos do turno selecionado
+    carregarDados();
+    mostrarAviso(`🔁 Turno alterado para: ${turno}`);
+});
 
 // ================== FUNÇÕES DE INTERFACE ==================
 document.addEventListener("click", (event) => {
@@ -291,15 +264,12 @@ function toggleConfig(event) {
   painelAberto = configContent.classList.contains("active");
 }
 
-// Atualiza o gráfico a cada 5s se o painel estiver fechado
 setInterval(() => {
   if (!painelAberto) {
     carregarDados();
   }
 }, 5000);
 
-
-// Exibe uma mensagem estilizada
 function mostrarAviso(texto) {
   let aviso = document.createElement("div");
   aviso.textContent = texto;
@@ -324,10 +294,12 @@ function mostrarAviso(texto) {
   }, 2500);
 }
 
-// Inicia tudo
+// listener do botão salvar
 document.getElementById("salvarConfig").addEventListener("click", salvarConfig);
-iniciarTurnos();
+// inicialização
+carregarDados();
 </script>
+
 
 </body>
 </html>
