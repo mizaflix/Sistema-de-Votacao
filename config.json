@@ -5,7 +5,7 @@
         "3º Turno"
     ],
     "turno_atual": "1º Turno",
-    "presentes": 120,
+    "presentes": 121,
     "candidatos": [
         {
             "nome": "Aluizo",
@@ -55,7 +55,8 @@
             "Michael",
             "Thiago O",
             "Thiago R",
-            "Walisson"
+            "Walisson",
+            "Voto Nulo"
         ],
         "2º Turno": [
             "Lucas",

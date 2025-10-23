@@ -57,11 +57,31 @@ header h1 {
 }
 
 .foto{
-  height: 4.2cm;
-  width: 4.2cm;
+  height: 4.4cm;
+  width: 4.3cm;
+  border-radius: 2px;
 }
 .card {
-  background-color: #3a7553;
+  background-color: #1b4332;
+  border: 4px solid #1b4332;
+  color: white;
+  height: 4.5cm;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.15s;
+  flex: 1 1 200px; /* mínimo 300px */
+  max-width: 4.5cm;
+  margin: 10px;
+  padding: 30px;
+}
+.card-nulo{
+  background-color: #1b4332;
+  border: 4px solid #1b4332;
   color: white;
   height: 4.5cm;
   display: flex;
@@ -79,7 +99,82 @@ header h1 {
 }
 
 .card:hover { transform: scale(1.03); }
-.card.selecionado { border: 4px solid #1b4332; background:#40916c; }
+/* === ACESSIBILIDADE: CANDIDATO SELECIONADO === */
+.card.selecionado {
+  position: relative;
+  border: 5px solid #00c853; /* verde forte e visível */
+  box-shadow: 0 0 25px rgba(0, 200, 83, 0.9);
+  transform: scale(1.06);
+  background-color: #e8f5e9; /* leve contraste verde-claro no fundo */
+  animation: focoAcessivel 1s ease-in-out infinite alternate;
+}
+
+/* Ícone de confirmação (✔️) visível para quem tem dificuldade de cor */
+.card.selecionado::after {
+  content: "✔ VOTO SELECIONADO";
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #00c853;
+  color: white;
+  font-weight: bold;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 0.9em;
+  letter-spacing: 0.5px;
+}
+
+/* Efeito pulsante visível */
+@keyframes focoAcessivel {
+  from {
+    box-shadow: 0 0 10px rgba(0, 200, 83, 0.6);
+  }
+  to {
+    box-shadow: 0 0 35px rgba(0, 200, 83, 1);
+  }
+}
+
+/* === VOTO NULO (versão acessível em vermelho) === */
+.card-nulo.selecionado {
+  position: relative;
+  border: 5px solid #e63946;
+  box-shadow: 0 0 25px rgba(230, 57, 70, 0.9);
+  background-color: #ffe5e9;
+  transform: scale(1.06);
+  animation: focoAcessivelNulo 1s ease-in-out infinite alternate;
+}
+
+.card-nulo.selecionado::after {
+  content: "✖ VOTO NULO";
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #e63946;
+  color: white;
+  font-weight: bold;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 0.9em;
+  letter-spacing: 0.5px;
+}
+
+@keyframes focoAcessivelNulo {
+  from {
+    box-shadow: 0 0 10px rgba(230, 57, 70, 0.6);
+  }
+  to {
+    box-shadow: 0 0 35px rgba(230, 57, 70, 1);
+  }
+}
+
+/* Foco de teclado acessível (para quem navega sem mouse) */
+.card:focus {
+  outline: 4px solid #ffcc00;
+  outline-offset: 4px;
+}
+
 
 #confirmar {
   margin-top: 18px;
@@ -344,7 +439,80 @@ header h1 {
   display: flex;
   gap: 10px;
 }
-
+ /* === MODAL DE CONFIRMAÇÃO === */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+    }
+    .modal {
+      background: #fff;
+      padding: 25px;
+      border-radius: 15px;
+      text-align: center;
+      box-shadow: 0 0 20px rgba(0,0,0,0.3);
+      max-width: 400px;
+      width: 90%;
+      animation: fadeIn 0.3s ease;
+    }
+    .modal h2 {
+      margin-top: 0;
+      font-size: 1.4em;
+      color: #333;
+    }
+    .modal p {
+      margin: 10px 0 20px;
+      color: #555;
+    }
+    .modal button {
+      border: none;
+      padding: 10px 18px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: 0.2s;
+      margin: 0 8px;
+    }
+    .btn-confirmar {
+      background-color: #3a7553;
+      color: white;
+    }
+    .btn-cancelar {
+      background-color: #d9534f;
+      color: white;
+    }
+    .btn-confirmar:hover { background-color: #3a7553; }
+    .btn-cancelar:hover { background-color: #c13e3a; }
+ /* === TOAST BONITO === */
+    .toast {
+      visibility: hidden;
+      min-width: 260px;
+      background-color: #333;
+      color: #fff;
+      text-align: center;
+      border-radius: 8px;
+      padding: 12px;
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.4s, bottom 0.4s;
+      font-weight: 500;
+    }
+    .toast.mostrar {
+      visibility: visible;
+      opacity: 1;
+      bottom: 50px;
+    }
+    .toast.sucesso { background-color: #3a7553; }
+    .toast.erro { background-color: #dc3545; }
 @media (max-width: 768px) {
   body {
     font-size: 14px;

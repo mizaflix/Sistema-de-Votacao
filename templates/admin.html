@@ -11,9 +11,11 @@
 
 <header>
        <div class="logo-container">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
+            <a href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo"></a>
+            
         </div>
         <h1>Painel Administrativo - Sistema de Votação</h1>
+        <a href="/logout" class="admin-link">Sair</a>
     </header>
 
 <main>
@@ -122,6 +124,10 @@ function atualizarGrafico(dados) {
     const labels = dados.candidatos;
     const valores = labels.map(c => dados.percent[c] || 0);
 
+    // define cores dinamicamente
+    const cores = valores.map(v => v >= 50 ? '#2ecc71' : '#49886e'); 
+    // verde (#2ecc71) se >= 50%, senão mantém o verde escuro do tema
+
     if (grafico) grafico.destroy();
 
     grafico = new Chart(ctx, {
@@ -131,13 +137,30 @@ function atualizarGrafico(dados) {
             datasets: [{
                 label: '% dos votos (com base nos presentes)',
                 data: valores,
-                backgroundColor: '#49886e'
+                backgroundColor: cores,
+                borderRadius: 6, // deixa as barras arredondadas
             }]
         },
         options: {
             responsive: true,
             scales: {
-                y: { beginAtZero: true, max: 100 }
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function (value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                title: {
+                    display: true,
+                    text: `Resultados - ${dados.turno_atual}`,
+                    font: { size: 16 }
+                }
             }
         }
     });

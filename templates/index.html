@@ -25,14 +25,26 @@
         <img class="foto" src="{{ url_for('static', filename=candidato.foto) }}" alt="{{ candidato.nome }}">
       </div>
       {% endfor %}
-      <div class="card" onclick="toggleVoto('NULO', this)">
-  <div >Voto Nulo</div>
-</div>
+      <div class="card-nulo" onclick="toggleVoto('NULO', this)">
+        <div>Voto Nulo</div>
+      </div>
     </div>
-    <!-- Voto Nulo -->
-    <button id="confirmar" onclick="confirmarVotos()">CONFIRMAR VOTO</button>
+
+    <button id="confirmar" onclick="abrirModal()">CONFIRMAR VOTO</button>
     <div id="toast" class="toast"></div>
   </main>
+
+  <!-- Modal de confirmação -->
+  <div id="modalOverlay" class="modal-overlay">
+    <div class="modal">
+      <h2>Confirmar Voto</h2>
+      <p id="modalTexto">Deseja confirmar seus votos?</p>
+      <button class="btn-confirmar" onclick="confirmarVotos()">Confirmar</button>
+      <button class="btn-cancelar" onclick="fecharModal()">Cancelar</button>
+    </div>
+  </div>
+
+  <audio id="somConfirmar" src="{{ url_for('static', filename='voto.mp3') }}"></audio>
 
 <script>
 let votosSelecionados = [];
@@ -41,7 +53,7 @@ function toggleVoto(nome, elemento) {
   const idx = votosSelecionados.indexOf(nome);
   if (idx === -1) {
     if (votosSelecionados.length >= 6) {
-      alert('Você só pode votar em até 6 candidatos!');
+      mostrarAlerta('Você só pode votar em até 6 candidatos!', 'erro');
       return;
     }
     votosSelecionados.push(nome);
@@ -50,37 +62,53 @@ function toggleVoto(nome, elemento) {
     votosSelecionados.splice(idx, 1);
     elemento.classList.remove('selecionado');
   }
-  document.getElementById('contador').innerText = `Você pode escolher até 6 candidatos (${votosSelecionados.length}/6)`;
+  document.getElementById('contador').innerText = 
+    `Você pode escolher até 6 candidatos (${votosSelecionados.length}/6)`;
 }
 
-async function confirmarVotos() {
+// === MODAL ===
+function abrirModal() {
   if (votosSelecionados.length === 0) {
-    alert('Selecione ao menos um candidato ou o voto NULO.');
+    mostrarAlerta('Selecione ao menos um candidato ou o voto NULO.', 'erro');
     return;
   }
+  const modalTexto = document.getElementById('modalTexto');
+  modalTexto.innerText = `Confirmar votos em: ${votosSelecionados.join(', ')}?`;
+  document.getElementById('modalOverlay').style.display = 'flex';
+}
 
-  const confirmar = confirm(`Confirmar votos em: ${votosSelecionados.join(', ')}?`);
-  if (!confirmar) return;
+function fecharModal() {
+  document.getElementById('modalOverlay').style.display = 'none';
+}
 
+// === CONFIRMAR VOTO ===
+async function confirmarVotos() {
+  fecharModal();
   const resp = await fetch('/votar', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({votos: votosSelecionados})
+    body: JSON.stringify({ votos: votosSelecionados })
   });
-  const dados = await resp.json();
-  mostrarAlerta(dados.mensagem);
-  tocarSomConfirmacao();
 
+  const dados = await resp.json();
   if (resp.ok) {
+    mostrarAlerta(dados.mensagem, 'sucesso');
+    tocarSomConfirmacao();
     votosSelecionados = [];
     document.querySelectorAll('.card').forEach(c => c.classList.remove('selecionado'));
     document.getElementById('contador').innerText = 'Você pode escolher até 6 candidatos (0/6)';
+  } else {
+    mostrarAlerta('Erro ao enviar votos.', 'erro');
   }
-  function tocarSomConfirmacao() {
+}
+
+function tocarSomConfirmacao() {
   const som = document.getElementById("somConfirmar");
   som.currentTime = 0;
   som.play();
 }
+
+// === TOAST BONITO ===
 function mostrarAlerta(mensagem, tipo = "info") {
   const toast = document.getElementById("toast");
   toast.textContent = mensagem;
@@ -89,8 +117,6 @@ function mostrarAlerta(mensagem, tipo = "info") {
     toast.className = "toast";
   }, 3000);
 }
-}
 </script>
-<audio id="somConfirmar" src="{{ url_for('static', filename='voto.mp3') }}"></audio>
 </body>
 </html>

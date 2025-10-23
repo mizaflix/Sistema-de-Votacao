@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, url_for, session, redirect
 import json
 import os
 from pathlib import Path
+from functools import wraps
 app = Flask(__name__)
-
+app.secret_key = 'chave-secreta-segura-2025'
 # Arquivos
 ARQ_VOTOS = 'votos.json'
 ARQ_CONFIG = 'config.json'
@@ -51,25 +52,70 @@ def ler_json_seguro(path, padrao):
 def inicializar_arquivos():
     config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
 
-    # Garante que "Voto Nulo" exista
-    if not any(c['nome'] == "Voto Nulo" for c in config["candidatos"]):
-        config["candidatos"].append({"nome": "Voto Nulo"})
+    # Garante que "Voto Nulo" exista no config['candidatos']
+    if not any(c['nome'] == "Voto Nulo" for c in config.get("candidatos", [])):
+        config.setdefault("candidatos", []).append({"nome": "Voto Nulo"})
 
-    nomes = [c['nome'] for c in config["candidatos"]]
-    votos = ler_json_seguro(ARQ_VOTOS, {n: 0 for n in nomes})
+    # Garantir turnos padrão se não existir
+    config.setdefault('turnos', PADRAO_TURNOS)
+    config.setdefault('turno_atual', config['turnos'][0])
 
-    # Ajusta estrutura
-    for n in nomes:
-        if n not in votos:
-            votos[n] = 0
-    to_remove = [k for k in votos if k not in nomes]
-    for k in to_remove:
-        votos.pop(k)
+    # Lê o arquivo de votos atual e detecta formato
+    votos_raw = None
+    if os.path.exists(ARQ_VOTOS):
+        try:
+            with open(ARQ_VOTOS, 'r', encoding='utf-8') as f:
+                votos_raw = json.load(f)
+        except Exception:
+            votos_raw = None
 
+    # Se está no formato antigo (chaves candidatos no topo), migrar para por-turno
+    votos_por_turno = {}
+    turnos = config.get('turnos', PADRAO_TURNOS)
+    for t in turnos:
+        votos_por_turno[t] = {}
+
+    if isinstance(votos_raw, dict):
+        # detectar se é formato "flat" (chaves candidatos) ou por-turno (chave de turno)
+        top_keys = list(votos_raw.keys())
+        # heurística simples: se alguma key coincide com um turno -> já é por-turno
+        if any(k in turnos for k in top_keys):
+            # já é por-turno, assegurar chaves para todos os turnos
+            votos_por_turno = votos_raw
+            for t in turnos:
+                votos_por_turno.setdefault(t, {})
+        else:
+            # é flat -> migrar: colocar tudo no turno atual (ou 1º turno)
+            alvo = config.get('turno_atual', turnos[0])
+            for k, v in votos_raw.items():
+                votos_por_turno.setdefault(alvo, {})
+                votos_por_turno[alvo][k] = int(v or 0)
+    else:
+        # cria estrutura vazia por turno com candidatos zerados
+        pass
+
+    # garantir candidatos por turno e zerar candidatos ausentes
+    # obter lista de nomes atuais (do 1º turno padrão)
+    nomes_padrao = [c['nome'] for c in config.get('candidatos', [])]
+    for t in turnos:
+        # se não houver candidatos definidos por turno, use nomes_padrao
+        if not votos_por_turno.get(t):
+            votos_por_turno[t] = {n: 0 for n in nomes_padrao}
+        else:
+            # garante que chaves existam para os nomes atuais (evita KeyError)
+            for n in nomes_padrao:
+                votos_por_turno[t].setdefault(n, 0)
+            # remove chaves que não são mais candidatos (opcional)
+            to_remove = [k for k in votos_por_turno[t].keys() if k not in nomes_padrao]
+            for k in to_remove:
+                votos_por_turno[t].pop(k)
+
+    # salva arquivos atualizados
     with open(ARQ_VOTOS, 'w', encoding='utf-8') as f:
-        json.dump(votos, f, indent=4, ensure_ascii=False)
+        json.dump(votos_por_turno, f, indent=4, ensure_ascii=False)
     with open(ARQ_CONFIG, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=4, ensure_ascii=False)
+
 
 
 @app.route('/')
@@ -90,21 +136,39 @@ def votar():
         return jsonify({'mensagem': 'Você só pode votar em até 6 candidatos!'}), 400
 
     config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
-    candidatos_validos = [c['nome'] for c in config['candidatos']]
-    votos = ler_json_seguro(ARQ_VOTOS, {c: 0 for c in candidatos_validos})
+    turnos = config.get('turnos', PADRAO_TURNOS)
+    turno_atual = config.get('turno_atual', turnos[0])
+
+    # lê votos por turno (estrutura esperada: { "1º turno": {cand: qtd}, "2º turno": {...} })
+    votos_por_turno = ler_json_seguro(ARQ_VOTOS, {t: {} for t in turnos})
+    votos_por_turno.setdefault(turno_atual, {})
+
+    candidatos_validos = []
+    # tenta obter candidatos do turno atual (se existir config['candidatos_por_turno'])
+    candidatos_por_turno = config.get('candidatos_por_turno', {})
+    if candidatos_por_turno and candidatos_por_turno.get(turno_atual):
+        candidatos_validos = candidatos_por_turno[turno_atual]
+    else:
+        # fallback para config['candidatos']
+        candidatos_validos = [c['nome'] for c in config.get('candidatos', [])]
+
+    # garante chaves no dicionário do turno atual
+    for nome in candidatos_validos:
+        votos_por_turno[turno_atual].setdefault(nome, 0)
 
     invalidados = []
     for v in votos_recebidos:
-        if v in votos:
-            votos[v] += 1
+        if v in votos_por_turno[turno_atual]:
+            votos_por_turno[turno_atual][v] += 1
         else:
             invalidados.append(v)
 
+    # atualiza contador de quem já votou (global; se preferir pode fazer por-turno)
     config['votaram'] = config.get('votaram', 0) + 1
 
+    # salva
     with open(ARQ_VOTOS, 'w', encoding='utf-8') as f:
-        json.dump(votos, f, indent=4, ensure_ascii=False)
-
+        json.dump(votos_por_turno, f, indent=4, ensure_ascii=False)
     with open(ARQ_CONFIG, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=4, ensure_ascii=False)
 
@@ -114,15 +178,53 @@ def votar():
     return jsonify({'mensagem': msg})
 
 
+
 @app.route('/resultados', methods=['GET'])
 def resultados():
     config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
-    nomes = [c['nome'] for c in config['candidatos']]
-    votos = ler_json_seguro(ARQ_VOTOS, {n: 0 for n in nomes})
-    return jsonify(votos)
+    turnos = config.get('turnos', PADRAO_TURNOS)
+    turno_atual = config.get('turno_atual', turnos[0])
 
+    votos_por_turno = ler_json_seguro(ARQ_VOTOS, {t: {} for t in turnos})
+    votos_do_turno = votos_por_turno.get(turno_atual, {})
+
+    return jsonify({
+        'turno_atual': turno_atual,
+        'votos': votos_do_turno,
+        'todos_turnos': votos_por_turno  # opcional, para debug
+    })
+
+
+# Decorador para exigir login
+def login_obrigatorio(f):
+    @wraps(f)
+    def decorada(*args, **kwargs):
+        if not session.get('logado'):
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorada
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        usuario = request.form['usuario']
+        senha = request.form['senha']
+
+        if usuario == 'jardim2025' and senha == '02022019':
+            session['logado'] = True
+            return redirect(url_for('admin_page'))
+        else:
+            return render_template('login.html', erro="Usuário ou senha incorretos.")
+    
+    return render_template('login.html')
+
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
 @app.route('/admin')
+@login_obrigatorio
 def admin_page():
     config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
     return render_template('admin.html', config=config)
@@ -231,9 +333,6 @@ def admin_update_config():
         alvo = dados.get('turno_for_candidates') or config.get('turno_atual') or turnos_padrao[0]
         # atualiza candidatos do turno alvo
         config['candidatos_por_turno'][alvo] = lista
-        # reseta contagem desse turno (opcional: manter vies — aqui zera para evitar inconsistência)
-        votos_por_turno[alvo] = {n: 0 for n in lista}
-        config['votaram'] = 0
 
     # --- Resetar votos (zera todos os turnos) ---
     if dados.get('reset_votos'):
