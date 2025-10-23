@@ -18,7 +18,11 @@
         "Thiago O": 0,
         "Thiago R": 0,
         "Walisson": 0,
-        "Voto Nulo": 0
+        "Voto Nulo": 0,
+        "Hernanes": 0,
+        "Nicodemus": 0,
+        "Jonas": 0,
+        "Tiago": 0
     },
     "2º Turno": {
         "Lucas": 0,
@@ -26,5 +30,10 @@
         "Thiago R": 0,
         "Voto Nulo": 0
     },
-    "3º Turno": {}
+    "3º Turno": {
+        "Fabio": 0,
+        "Andre": 0,
+        "Aluizo": 0,
+        "Voto Nulo": 0
+    }
 }

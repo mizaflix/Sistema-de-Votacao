@@ -20,15 +20,19 @@
     <p id="contador">Você pode escolher até 6 candidatos (0/6)</p>
 
     <div class="grid">
-      {% for candidato in candidatos %}
-      <div class="card" onclick="toggleVoto('{{ candidato.nome }}', this)">
-        <img class="foto" src="{{ url_for('static', filename=candidato.foto) }}" alt="{{ candidato.nome }}">
-      </div>
-      {% endfor %}
-      <div class="card-nulo" onclick="toggleVoto('NULO', this)">
-        <div>Voto Nulo</div>
-      </div>
-    </div>
+  {% for candidato in candidatos %}
+  {% if candidato.nome != "Voto Nulo" %}
+  <div class="card" onclick="toggleVoto('{{ candidato.nome }}', this)">
+    <img class="foto" src="{{ url_for('static', filename=candidato.foto) }}" alt="{{ candidato.nome }}">
+  </div>
+  {% endif %}
+  {% endfor %}
+  
+  <!-- Voto Nulo separado -->
+  <div class="card-nulo" onclick="toggleVoto('NULO', this)">
+    <div>VOTO NULO</div>
+  </div>
+</div>
 
     <button id="confirmar" onclick="abrirModal()">CONFIRMAR VOTO</button>
     <div id="toast" class="toast"></div>
@@ -50,20 +54,40 @@
 let votosSelecionados = [];
 
 function toggleVoto(nome, elemento) {
-  const idx = votosSelecionados.indexOf(nome);
-  if (idx === -1) {
-    if (votosSelecionados.length >= 6) {
-      mostrarAlerta('Você só pode votar em até 6 candidatos!', 'erro');
-      return;
-    }
-    votosSelecionados.push(nome);
+  const nuloCard = document.querySelector('.card-nulo');
+  const isNulo = nome === 'NULO';
+
+  // Se clicou em "Voto Nulo"
+  if (isNulo) {
+    // Desmarca todos os outros candidatos
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('selecionado'));
+    votosSelecionados = ['NULO'];
     elemento.classList.add('selecionado');
   } else {
-    votosSelecionados.splice(idx, 1);
-    elemento.classList.remove('selecionado');
+    // Se "Voto Nulo" estava selecionado, remove
+    if (votosSelecionados.includes('NULO')) {
+      votosSelecionados = [];
+      nuloCard.classList.remove('selecionado');
+    }
+
+    const idx = votosSelecionados.indexOf(nome);
+    if (idx === -1) {
+      if (votosSelecionados.length >= 6) {
+        alert('Você só pode votar em até 6 candidatos!');
+        return;
+      }
+      votosSelecionados.push(nome);
+      elemento.classList.add('selecionado');
+    } else {
+      votosSelecionados.splice(idx, 1);
+      elemento.classList.remove('selecionado');
+    }
   }
-  document.getElementById('contador').innerText = 
-    `Você pode escolher até 6 candidatos (${votosSelecionados.length}/6)`;
+
+  document.getElementById('contador').innerText =
+    votosSelecionados.includes('NULO')
+      ? 'Você selecionou voto NULO.'
+      : `Você pode escolher até 6 candidatos (${votosSelecionados.length}/6)`;
 }
 
 // === MODAL ===
@@ -117,6 +141,18 @@ function mostrarAlerta(mensagem, tipo = "info") {
     toast.className = "toast";
   }, 3000);
 }
+
+// Atualiza candidatos automaticamente a cada 5 segundos
+setInterval(() => {
+  fetch('/config_turno')
+    .then(resp => resp.json())
+    .then(dados => {
+      if (window.turnoAtual !== dados.turno_atual) {
+        window.location.reload(); // Recarrega a página se o turno mudou
+      }
+    });
+}, 5000);
+
 </script>
 </body>
 </html>

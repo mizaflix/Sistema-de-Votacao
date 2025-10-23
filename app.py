@@ -21,7 +21,7 @@ PADRAO_CANDIDATOS = [
     {"nome": "Thiago R"},
     {"nome": "Walisson"},
 ]
-PADRAO_TURNOS = ['1º turno', '2º turno']
+PADRAO_TURNOS = ['1º turno', '2º turno', '3° turno']
 PADRAO_CONFIG = {
     "candidatos": PADRAO_CANDIDATOS,
     "turnos": PADRAO_TURNOS,
@@ -116,13 +116,34 @@ def inicializar_arquivos():
     with open(ARQ_CONFIG, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=4, ensure_ascii=False)
 
+@app.route('/config_turno')
+def config_turno():
+    config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
+    return jsonify({'turno_atual': config.get('turno_atual')})
 
 
 @app.route('/')
 def index():
     config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
-    candidatos = config['candidatos']
-    return render_template('index.html', candidatos=candidatos)
+    turno_atual = config.get('turno_atual', '1º Turno')
+
+    # pega a lista de nomes dos candidatos desse turno
+    nomes_turno = config.get('candidatos_por_turno', {}).get(turno_atual, [])
+
+    # busca os objetos completos (com nome e foto)
+    candidatos_completos = []
+    for nome in nomes_turno:
+        if nome == "Voto Nulo":
+            candidatos_completos.append({"nome": "Voto Nulo", "foto": None})
+            continue
+        for c in config.get('candidatos', []):
+            if c['nome'] == nome:
+                candidatos_completos.append(c)
+                break
+
+    return render_template('index.html', candidatos=candidatos_completos, turno_atual=turno_atual)
+
+
 
 
 @app.route('/votar', methods=['POST'])

@@ -436,8 +436,9 @@ header h1 {
 
 .botoes-config {
   margin-top: 15px;
-  display: flex;
+  display: block;
   gap: 10px;
+  text-align: center;
 }
  /* === MODAL DE CONFIRMAÇÃO === */
     .modal-overlay {
