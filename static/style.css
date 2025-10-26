@@ -514,6 +514,35 @@ header h1 {
     }
     .toast.sucesso { background-color: #3a7553; }
     .toast.erro { background-color: #dc3545; }
+.admin-eleitores {
+  margin-top: 2rem;
+  background: #f7f7f7;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.eleitor-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 1rem;
+}
+
+#tabelaEleitores {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#tabelaEleitores th, #tabelaEleitores td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: center;
+}
+
+#tabelaEleitores th {
+  background-color: #49886e;
+  color: white;
+}
 @media (max-width: 768px) {
   body {
     font-size: 14px;

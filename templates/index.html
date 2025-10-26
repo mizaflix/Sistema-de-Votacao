@@ -17,7 +17,6 @@
     </header>
 
   <main>
-    <p id="contador">Você pode escolher até 6 candidatos (0/6)</p>
 
     <div class="grid">
   {% for candidato in candidatos %}
@@ -113,6 +112,7 @@ async function confirmarVotos() {
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({ votos: votosSelecionados })
   });
+  
 
   const dados = await resp.json();
   if (resp.ok) {
@@ -142,16 +142,6 @@ function mostrarAlerta(mensagem, tipo = "info") {
   }, 3000);
 }
 
-// Atualiza candidatos automaticamente a cada 5 segundos
-setInterval(() => {
-  fetch('/config_turno')
-    .then(resp => resp.json())
-    .then(dados => {
-      if (window.turnoAtual !== dados.turno_atual) {
-        window.location.reload(); // Recarrega a página se o turno mudou
-      }
-    });
-}, 5000);
 
 </script>
 </body>

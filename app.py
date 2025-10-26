@@ -8,6 +8,9 @@ app.secret_key = 'chave-secreta-segura-2025'
 # Arquivos
 ARQ_VOTOS = 'votos.json'
 ARQ_CONFIG = 'config.json'
+ARQ_ELEITORES = 'eleitores.json'
+
+app.secret_key = "chave-super-secreta"
 
 # Valores padrão
 PADRAO_CANDIDATOS = [
@@ -121,9 +124,15 @@ def config_turno():
     config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
     return jsonify({'turno_atual': config.get('turno_atual')})
 
+# 🪪 Tela para digitar CPF
+@app.route('/cpf', methods=['GET'])
+def tela_cpf():
+    return render_template('cpf.html')
 
 @app.route('/')
 def index():
+    if 'cpf' not in session:
+        return redirect(url_for('tela_cpf'))
     config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
     turno_atual = config.get('turno_atual', '1º Turno')
 
@@ -144,7 +153,23 @@ def index():
     return render_template('index.html', candidatos=candidatos_completos, turno_atual=turno_atual)
 
 
+# 🧠 Verificação de CPF
+@app.route('/verificar_cpf', methods=['POST'])
+def verificar_cpf():
+    dados = request.get_json()
+    cpf = dados.get('cpf', '').strip()
 
+    eleitores = carregar_eleitores()
+
+    if cpf not in eleitores:
+        return jsonify({'erro': 'CPF não cadastrado.'}), 400
+
+    if eleitores[cpf]['votou']:
+        return jsonify({'erro': 'Este CPF já votou!'}), 400
+
+    # ✅ salva o CPF na sessão
+    session['cpf'] = cpf
+    return jsonify({'ok': True})
 
 @app.route('/votar', methods=['POST'])
 def votar():
@@ -159,6 +184,7 @@ def votar():
     config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
     turnos = config.get('turnos', PADRAO_TURNOS)
     turno_atual = config.get('turno_atual', turnos[0])
+    cpf = session.get('cpf')
 
     # lê votos por turno (estrutura esperada: { "1º turno": {cand: qtd}, "2º turno": {...} })
     votos_por_turno = ler_json_seguro(ARQ_VOTOS, {t: {} for t in turnos})
@@ -192,6 +218,22 @@ def votar():
         json.dump(votos_por_turno, f, indent=4, ensure_ascii=False)
     with open(ARQ_CONFIG, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=4, ensure_ascii=False)
+
+    if not cpf:
+        return jsonify({'erro': 'Sessão expirada. Faça login novamente.'}), 403
+
+    eleitores = carregar_eleitores()
+    if cpf not in eleitores:
+        return jsonify({'erro': 'CPF inválido.'}), 403
+
+    if eleitores[cpf]['votou']:
+        return jsonify({'erro': 'CPF já votou.'}), 403
+
+    eleitores[cpf]['votou'] = True
+    salvar_eleitores(eleitores)
+
+    # Sai da sessão e volta pra tela de CPF
+    session.pop('cpf', None)
 
     msg = f'Votos confirmados: {", ".join([v for v in votos_recebidos if v not in invalidados])}'
     if invalidados:
@@ -250,6 +292,70 @@ def admin_page():
     config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
     return render_template('admin.html', config=config)
 
+
+def carregar_eleitores():
+    try:
+        with open(ARQ_ELEITORES, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
+def salvar_eleitores(eleitores):
+    with open(ARQ_ELEITORES, 'w', encoding='utf-8') as f:
+        json.dump(eleitores, f, ensure_ascii=False, indent=4)
+
+# ✅ Cadastrar novo CPF
+@app.route('/admin/eleitores/adicionar', methods=['POST'])
+def adicionar_eleitor():
+    dados = request.get_json(force=True)
+    cpf = dados.get('cpf', '').strip()
+    if not cpf or len(cpf) < 11:
+        return jsonify({'erro': 'CPF inválido.'}), 400
+
+    eleitores = carregar_eleitores()
+    if cpf in eleitores:
+        return jsonify({'erro': 'CPF já cadastrado.'}), 400
+
+    eleitores[cpf] = {'votou': False}
+    salvar_eleitores(eleitores)
+    return jsonify({'mensagem': f'CPF {cpf} cadastrado com sucesso!'})
+
+# 📋 Listar eleitores
+@app.route('/admin/eleitores', methods=['GET'])
+def listar_eleitores():
+    eleitores = carregar_eleitores()
+    return jsonify(eleitores)
+
+@app.route('/admin/eleitores/editar', methods=['POST'])
+def editar_eleitor():
+    dados = request.get_json()
+    cpf_antigo = dados.get('cpf_antigo')
+    cpf_novo = dados.get('cpf_novo')
+    eleitores = carregar_eleitores()
+
+    if cpf_antigo not in eleitores:
+        return jsonify({'erro': 'CPF original não encontrado.'}), 400
+
+    eleitores[cpf_novo] = eleitores.pop(cpf_antigo)
+    salvar_eleitores(eleitores)
+    return jsonify({'mensagem': 'CPF atualizado com sucesso.'})
+
+@app.route('/admin/eleitores/excluir', methods=['POST'])
+def excluir_eleitor():
+    dados = request.get_json()
+    cpf = dados.get('cpf')
+    eleitores = carregar_eleitores()
+
+    if cpf in eleitores:
+        eleitores.pop(cpf)
+        salvar_eleitores(eleitores)
+        return jsonify({'mensagem': 'CPF excluído com sucesso.'})
+    return jsonify({'erro': 'CPF não encontrado.'}), 404
+
+@app.route('/admin/eleitores/excluir_todos', methods=['POST'])
+def excluir_todos_eleitores():
+    salvar_eleitores({})
+    return jsonify({'mensagem': 'Todos os CPFs foram excluídos.'})
 
 @app.route('/admin/data')
 def admin_data():
@@ -356,11 +462,27 @@ def admin_update_config():
         config['candidatos_por_turno'][alvo] = lista
 
     # --- Resetar votos (zera todos os turnos) ---
+    # --- Resetar votos (zera todos os turnos + status dos eleitores) ---
     if dados.get('reset_votos'):
+        # Zera votos de todos os turnos
         for turno in config['turnos']:
             candidatos = config['candidatos_por_turno'].get(turno, [])
             votos_por_turno[turno] = {c: 0 for c in candidatos}
+
+        # Reinicia contagem de votantes
         config['votaram'] = 0
+
+        # Zera status de quem já votou (no arquivo eleitores.json)
+        try:
+            with open('eleitores.json', 'r', encoding='utf-8') as f:
+                eleitores = json.load(f)
+            for cpf, info in eleitores.items():
+                info['votou'] = False
+            with open('eleitores.json', 'w', encoding='utf-8') as f:
+                json.dump(eleitores, f, ensure_ascii=False, indent=4)
+        except FileNotFoundError:
+            # Se ainda não existir arquivo de eleitores, ignora
+            pass
 
     # --- Salva alterações ---
     with open(ARQ_VOTOS, 'w', encoding='utf-8') as f:

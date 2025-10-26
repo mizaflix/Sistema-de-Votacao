@@ -84,6 +84,26 @@
   <button id="salvarConfig">💾 Salvar Configurações</button>
   <button class="danger" onclick="resetarVotos()">🔄 Zerar Votos</button>
 </div>
+<section id="eleitores-section">
+  <h2>Controle de Eleitores</h2>
+
+  <div class="botoes-config">
+    <input type="text" id="novo-cpf" placeholder="Digite o CPF">
+    <button onclick="adicionarCPF()">Adicionar CPF</button>
+    <button class="danger" onclick="excluirTodos()">Excluir Todos</button>
+  </div>
+<button onclick="carregarEleitores()">🔄 Atualizar Lista</button>
+  <table id="tabela-eleitores">
+    <thead>
+      <tr>
+        <th>CPF</th>
+        <th>Status</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
 
     </section>
 
@@ -316,7 +336,74 @@ function mostrarAviso(texto) {
     setTimeout(() => aviso.remove(), 500);
   }, 2500);
 }
+async function carregarEleitores() {
+  const resp = await fetch('/admin/eleitores');
+  const eleitores = await resp.json();
+  const tbody = document.querySelector('#tabela-eleitores tbody');
+  tbody.innerHTML = '';
 
+  for (const [cpf, info] of Object.entries(eleitores)) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${cpf}</td>
+      <td>${info.votou ? '<span style="color:green;">Votou</span>' : '<span style="color:red;">Não votou</span>'}</td>
+      <td>
+        <button onclick="editarCPF('${cpf}')">Editar</button>
+        <button class="danger" onclick="excluirCPF('${cpf}')">Excluir</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+async function adicionarCPF() {
+  const cpf = document.getElementById('novo-cpf').value.trim();
+  if (!cpf) return alert('Digite um CPF!');
+  const resp = await fetch('/admin/eleitores/adicionar', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({cpf})
+  });
+  const dados = await resp.json();
+  alert(dados.mensagem || dados.erro);
+  carregarEleitores();
+  document.getElementById('novo-cpf').value = '';
+}
+
+async function editarCPF(cpfAntigo) {
+  const cpfNovo = prompt('Digite o novo CPF:', cpfAntigo);
+  if (!cpfNovo || cpfNovo === cpfAntigo) return;
+  const resp = await fetch('/admin/eleitores/editar', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({cpf_antigo: cpfAntigo, cpf_novo: cpfNovo})
+  });
+  const dados = await resp.json();
+  alert(dados.mensagem || dados.erro);
+  carregarEleitores();
+}
+
+async function excluirCPF(cpf) {
+  if (!confirm('Tem certeza que deseja excluir este CPF?')) return;
+  const resp = await fetch('/admin/eleitores/excluir', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({cpf})
+  });
+  const dados = await resp.json();
+  alert(dados.mensagem || dados.erro);
+  carregarEleitores();
+}
+
+async function excluirTodos() {
+  if (!confirm('Deseja excluir TODOS os CPFs?')) return;
+  const resp = await fetch('/admin/eleitores/excluir_todos', { method: 'POST' });
+  const dados = await resp.json();
+  alert(dados.mensagem);
+  carregarEleitores();
+}
+
+carregarEleitores();
 // listener do botão salvar
 document.getElementById("salvarConfig").addEventListener("click", salvarConfig);
 // inicialização
