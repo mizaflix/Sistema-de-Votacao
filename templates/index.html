@@ -17,6 +17,7 @@
     </header>
 
   <main>
+    <p id="contador">Você pode escolher até 6 candidatos (0/6)</p>
 
     <div class="grid">
   {% for candidato in candidatos %}
@@ -52,6 +53,10 @@
 <script>
 let votosSelecionados = [];
 
+// Se o servidor marcar que já tem sessão, não exibir overlay.
+// Mas como estamos servindo a página somente depois de sessão, o overlay atuará quando necessário.
+// A rota /cpf redireciona pra mim se não houver sessão; aqui o overlay dá fallback se index for usado diretamente.
+
 function toggleVoto(nome, elemento) {
   const nuloCard = document.querySelector('.card-nulo');
   const isNulo = nome === 'NULO';
@@ -62,11 +67,12 @@ function toggleVoto(nome, elemento) {
     document.querySelectorAll('.card').forEach(c => c.classList.remove('selecionado'));
     votosSelecionados = ['NULO'];
     elemento.classList.add('selecionado');
+    if (nuloCard) nuloCard.classList.add('selecionado');
   } else {
     // Se "Voto Nulo" estava selecionado, remove
     if (votosSelecionados.includes('NULO')) {
       votosSelecionados = [];
-      nuloCard.classList.remove('selecionado');
+      if (nuloCard) nuloCard.classList.remove('selecionado');
     }
 
     const idx = votosSelecionados.indexOf(nome);
@@ -112,17 +118,30 @@ async function confirmarVotos() {
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({ votos: votosSelecionados })
   });
-  
 
   const dados = await resp.json();
+
   if (resp.ok) {
     mostrarAlerta(dados.mensagem, 'sucesso');
-    tocarSomConfirmacao();
-    votosSelecionados = [];
-    document.querySelectorAll('.card').forEach(c => c.classList.remove('selecionado'));
-    document.getElementById('contador').innerText = 'Você pode escolher até 6 candidatos (0/6)';
+    const som = document.getElementById("somConfirmar");
+    som.currentTime = 0;
+    som.play();
+
+    // Espera o áudio terminar antes de resetar
+    som.onended = () => {
+      votosSelecionados = [];
+      document.querySelectorAll('.card').forEach(c => c.classList.remove('selecionado'));
+      document.getElementById('contador').innerText = 'Você pode escolher até 6 candidatos (0/6)';
+      // Após o áudio, volta pra tela de CPF
+      window.location.href = "/cpf";
+    };
   } else {
     mostrarAlerta('Erro ao enviar votos.', 'erro');
+
+    // se for erro de sessão, redireciona para a tela de CPF
+    if (resp.status === 403) {
+      setTimeout(() => { window.location.href = '/cpf'; }, 1200);
+    }
   }
 }
 
@@ -142,7 +161,65 @@ function mostrarAlerta(mensagem, tipo = "info") {
   }, 3000);
 }
 
+
+// ================= CPF overlay logic =================
+async function enviarCPF() {
+  const cpf = document.getElementById('cpfInput').value.trim();
+  const msgEl = document.getElementById('cpfMsg');
+  msgEl.textContent = '';
+
+  if (!cpf) {
+    msgEl.textContent = 'Digite um CPF.';
+    return;
+  }
+
+  // Chama backend pra verificar
+  try {
+    const resp = await fetch('/verificar_cpf', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ cpf })
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+      // sucesso: fecha overlay e permite votar
+      const overlay = document.getElementById('cpfOverlay');
+      overlay.style.display = 'none';
+      mostrarAlerta('CPF aceito. Você já pode votar.', 'sucesso');
+    } else {
+      msgEl.textContent = data.erro || 'CPF inválido ou já votou.';
+    }
+  } catch (err) {
+    msgEl.textContent = 'Erro ao verificar CPF.';
+  }
+}
+
+// Se a página for carregada diretamente (sem passar por /cpf), o overlay aparece.
+// Caso contrário, o servidor redirecione para /cpf e essa página não é exibida.
+
 </script>
+
+<style>
+/* estilos rápidos pro overlay cpf (você pode mover pro style.css se quiser) */
+.cpf-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10,10,10,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.cpf-card {
+  background: white;
+  padding: 22px;
+  border-radius: 10px;
+  text-align: center;
+  width: 320px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+}
+.cpf-card input { width: 100%; padding: 10px; border-radius:6px; border:1px solid #ccc; }
+</style>
+
 </body>
 </html>
-

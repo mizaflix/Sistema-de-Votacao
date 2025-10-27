@@ -84,26 +84,27 @@
   <button id="salvarConfig">💾 Salvar Configurações</button>
   <button class="danger" onclick="resetarVotos()">🔄 Zerar Votos</button>
 </div>
-<section id="eleitores-section">
-  <h2>Controle de Eleitores</h2>
+    <div class="admin-eleitores">
+  <h4>Controle de Eleitores</h4>
 
-  <div class="botoes-config">
-    <input type="text" id="novo-cpf" placeholder="Digite o CPF">
-    <button onclick="adicionarCPF()">Adicionar CPF</button>
-    <button class="danger" onclick="excluirTodos()">Excluir Todos</button>
+  <div class="eleitor-form">
+    <input type="text" id="cpfNovo" placeholder="Digite o CPF (apenas números)">
+    <button id="addBtn">Adicionar</button>
   </div>
 <button onclick="carregarEleitores()">🔄 Atualizar Lista</button>
-  <table id="tabela-eleitores">
+  <div id="msgAdd"></div>
+
+  <table id="tabelaEleitores">
     <thead>
       <tr>
         <th>CPF</th>
-        <th>Status</th>
-        <th>Ações</th>
       </tr>
     </thead>
-    <tbody></tbody>
+    <tbody id="listaEleitores">
+    </tbody>
   </table>
-</section>
+</div>
+</div>
 
     </section>
 
@@ -145,8 +146,7 @@ function atualizarGrafico(dados) {
     const valores = labels.map(c => dados.percent[c] || 0);
 
     // define cores dinamicamente
-    const cores = valores.map(v => v >= 50 ? '#2ecc71' : '#49886e'); 
-    // verde (#2ecc71) se >= 50%, senão mantém o verde escuro do tema
+    const cores = valores.map(v => v >= 50 ? '#2ecc71' : '#49886e');
 
     if (grafico) grafico.destroy();
 
@@ -158,7 +158,7 @@ function atualizarGrafico(dados) {
                 label: '% dos votos (com base nos presentes)',
                 data: valores,
                 backgroundColor: cores,
-                borderRadius: 6, // deixa as barras arredondadas
+                borderRadius: 6,
             }]
         },
         options: {
@@ -187,12 +187,10 @@ function atualizarGrafico(dados) {
 }
 
 function preencherFormulario(dados) {
-    // campos globais
     document.getElementById('candidatos_text').value = (dados.candidatos_por_turno && dados.candidatos_por_turno[dados.turnos[0]]) ? dados.candidatos_por_turno[dados.turnos[0]].join(', ') : dados.candidatos.join(', ');
     document.getElementById('turnos_text').value = dados.turnos.join(', ');
     document.getElementById('presentes_input').value = dados.presentes;
 
-    // select de turnos
     const sel = document.getElementById('turno_atual_select');
     sel.innerHTML = '';
     dados.turnos.forEach(t => {
@@ -203,7 +201,6 @@ function preencherFormulario(dados) {
         sel.appendChild(opt);
     });
 
-    // preenche o textarea do turno específico (se existir)
     const turnoAtual = dados.turno_atual;
     const perTurnoArea = document.getElementById('novo_turno_candidatos');
     if (dados.candidatos_por_turno && dados.candidatos_por_turno[turnoAtual]) {
@@ -212,27 +209,22 @@ function preencherFormulario(dados) {
         perTurnoArea.value = '';
     }
 
-    // controla visibilidade do campo do turno específico
     atualizarVisibilidadeCampoTurno(sel.value);
 }
 
 async function salvarConfig() {
     const turnoSelecionado = document.getElementById('turno_atual_select').value;
 
-    // Monta corpo base
     const body = {
         turnos_text: document.getElementById('turnos_text').value,
         turno_atual: turnoSelecionado,
         presentes: document.getElementById('presentes_input').value
     };
 
-    // Se for 1º turno: atualiza candidatos "padrão" com campo candidatos_text
     const primeiroTurno = document.getElementById('turno_atual_select').options[0].value;
     if (turnoSelecionado === primeiroTurno) {
         body.candidatos_text = document.getElementById('candidatos_text').value;
-        // não precisa de turno_for_candidates (será usado para 1º turno/padrão)
     } else {
-        // se tiver candidatos específicos preenchidos no campo do turno selecionado, envia apenas para esse turno
         const candidatosDoTurno = document.getElementById('novo_turno_candidatos').value.trim();
         if (candidatosDoTurno) {
             body.candidatos_text = candidatosDoTurno;
@@ -262,7 +254,6 @@ async function resetarVotos() {
     carregarDados();
 }
 
-// ----------------- Gerenciamento de visibilidade do campo de candidatos por turno -----------------
 function atualizarVisibilidadeCampoTurno(turnoSelecionado) {
     const primeiroTurno = document.getElementById('turno_atual_select').options[0].value;
     const container = document.getElementById('novo-turno-container');
@@ -273,22 +264,18 @@ function atualizarVisibilidadeCampoTurno(turnoSelecionado) {
     }
 }
 
-// Ao trocar de turno no select: atualiza turno no backend e carrega candidatos daquele turno
 document.getElementById('turno_atual_select').addEventListener('change', async (e) => {
     const turno = e.target.value;
-    // informa o backend qual é o turno atual
     await fetch('/admin/update_config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ turno_atual: turno })
     });
     atualizarVisibilidadeCampoTurno(turno);
-    // recarrega dados para preencher o campo de candidatos do turno selecionado
     carregarDados();
     mostrarAviso(`🔁 Turno alterado para: ${turno}`);
 });
 
-// ================== FUNÇÕES DE INTERFACE ==================
 document.addEventListener("click", (event) => {
   const configContent = document.getElementById("config-content");
   const configButton = document.getElementById("config-btn");
@@ -336,79 +323,217 @@ function mostrarAviso(texto) {
     setTimeout(() => aviso.remove(), 500);
   }, 2500);
 }
+const listaDiv = document.getElementById("listaEleitores");
+const msgAdd = document.getElementById("msgAdd");
+
 async function carregarEleitores() {
-  const resp = await fetch('/admin/eleitores');
-  const eleitores = await resp.json();
-  const tbody = document.querySelector('#tabela-eleitores tbody');
-  tbody.innerHTML = '';
+    listaDiv.innerHTML = "<p>Carregando...</p>";
+    try {
+        const resp = await fetch("/admin/eleitores");
+        const eleitores = await resp.json();
 
-  for (const [cpf, info] of Object.entries(eleitores)) {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${cpf}</td>
-      <td>${info.votou ? '<span style="color:green;">Votou</span>' : '<span style="color:red;">Não votou</span>'}</td>
-      <td>
-        <button onclick="editarCPF('${cpf}')">Editar</button>
-        <button class="danger" onclick="excluirCPF('${cpf}')">Excluir</button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  }
+        if (!Object.keys(eleitores).length) {
+            listaDiv.innerHTML = "<p class='text-muted'>Nenhum eleitor cadastrado.</p>";
+            return;
+        }
+
+        listaDiv.innerHTML = "";
+        Object.entries(eleitores).forEach(([cpf, dados]) => {
+            const div = document.createElement("div");
+            div.className = "cpf-item";
+            div.innerHTML = `
+                <span><strong>${cpf}</strong> - ${dados.votou ? "✅ Votou" : "❌ Não votou"}</span>
+                <div>
+                    <button class="btn btn-sm btn-warning me-1" onclick="editarEleitor('${cpf}')">Editar</button>
+                    <button class="btn btn-sm btn-danger" onclick="removerEleitor('${cpf}')">Excluir</button>
+                </div>
+            `;
+            listaDiv.appendChild(div);
+        });
+    } catch (err) {
+        listaDiv.innerHTML = "<p class='text-danger'>Erro ao carregar eleitores.</p>";
+    }
 }
 
-async function adicionarCPF() {
-  const cpf = document.getElementById('novo-cpf').value.trim();
-  if (!cpf) return alert('Digite um CPF!');
-  const resp = await fetch('/admin/eleitores/adicionar', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({cpf})
-  });
-  const dados = await resp.json();
-  alert(dados.mensagem || dados.erro);
-  carregarEleitores();
-  document.getElementById('novo-cpf').value = '';
+async function adicionarEleitor() {
+    const cpf = document.getElementById("cpfNovo").value.trim();
+    if (!cpf || !/^\d+$/.test(cpf)) {
+        msgAdd.textContent = "⚠️ CPF inválido.";
+        return;
+    }
+
+    try {
+        const resp = await fetch("/admin/eleitores", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cpf })
+        });
+
+        const data = await resp.json();
+        if (resp.ok) {
+            msgAdd.textContent = data.mensagem;
+            document.getElementById("cpfNovo").value = "";
+            carregarEleitores();
+        } else {
+            msgAdd.textContent = data.erro || "Erro ao adicionar.";
+        }
+    } catch (e) {
+        msgAdd.textContent = "Erro ao conectar com o servidor.";
+    }
 }
 
-async function editarCPF(cpfAntigo) {
-  const cpfNovo = prompt('Digite o novo CPF:', cpfAntigo);
-  if (!cpfNovo || cpfNovo === cpfAntigo) return;
-  const resp = await fetch('/admin/eleitores/editar', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({cpf_antigo: cpfAntigo, cpf_novo: cpfNovo})
-  });
-  const dados = await resp.json();
-  alert(dados.mensagem || dados.erro);
-  carregarEleitores();
+async function editarEleitor(cpfAntigo) {
+    const novo = prompt("Digite o novo CPF:", cpfAntigo);
+    if (!novo || !/^\d+$/.test(novo)) return alert("CPF inválido.");
+
+    const resp = await fetch("/admin/eleitores", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cpf_antigo: cpfAntigo, cpf_novo: novo })
+    });
+    const data = await resp.json();
+    alert(data.mensagem || data.erro);
+    carregarEleitores();
 }
 
-async function excluirCPF(cpf) {
-  if (!confirm('Tem certeza que deseja excluir este CPF?')) return;
-  const resp = await fetch('/admin/eleitores/excluir', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({cpf})
-  });
-  const dados = await resp.json();
-  alert(dados.mensagem || dados.erro);
-  carregarEleitores();
+async function removerEleitor(cpf) {
+    if (!confirm(`Remover eleitor ${cpf}?`)) return;
+    const resp = await fetch("/admin/eleitores", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cpf })
+    });
+    const data = await resp.json();
+    alert(data.mensagem || data.erro);
+    carregarEleitores();
 }
 
-async function excluirTodos() {
-  if (!confirm('Deseja excluir TODOS os CPFs?')) return;
-  const resp = await fetch('/admin/eleitores/excluir_todos', { method: 'POST' });
-  const dados = await resp.json();
-  alert(dados.mensagem);
-  carregarEleitores();
+async function zerarTodos() {
+    if (!confirm("Tem certeza que deseja apagar TODOS os eleitores?")) return;
+    const resp = await fetch("/admin/eleitores/all", { method: "DELETE" });
+    const data = await resp.json();
+    alert(data.mensagem);
+    carregarEleitores();
 }
 
+document.getElementById("addBtn").addEventListener("click", adicionarEleitor);
+document.getElementById("zerarBtn").addEventListener("click", zerarTodos);
+document.getElementById("atualizarBtn").addEventListener("click", carregarEleitores);
+
+// carrega lista ao abrir
 carregarEleitores();
-// listener do botão salvar
+
 document.getElementById("salvarConfig").addEventListener("click", salvarConfig);
 // inicialização
 carregarDados();
 </script>
+<style>
+.admin-eleitores {
+  margin-top: 2rem;
+  background: #f7f7f7;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.admin-eleitores h4 {
+  text-align: center;
+  color: #2d5742;
+  margin-bottom: 1.2rem;
+}
+
+.eleitor-form {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 1.5rem;
+}
+
+.eleitor-form input {
+  flex: 1;
+  max-width: 300px;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.eleitor-form button {
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.2s;
+}
+
+.eleitor-form button:hover {
+  background-color: #145ea8;
+}
+
+#tabelaEleitores {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+#tabelaEleitores th, #tabelaEleitores td {
+  border: 1px solid #ccc;
+  padding: 8px 10px;
+  text-align: center;
+}
+
+#tabelaEleitores th {
+  background-color: #49886e;
+  color: white;
+  font-weight: 600;
+}
+
+#tabelaEleitores tr:nth-child(even) {
+  background-color: #f0f0f0;
+}
+
+#tabelaEleitores tr:hover {
+  background-color: #e0e0e0;
+}
+
+.btn-excluir {
+  background-color: #d32f2f;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.btn-excluir:hover {
+  background-color: #b71c1c;
+}
+
+.status {
+  font-weight: bold;
+}
+
+.status.votou {
+  color: #2e7d32;
+}
+
+.status.nao-votou {
+  color: #d32f2f;
+}
+
+#msgAdd {
+  text-align: center;
+  color: #2e7d32;
+  margin-bottom: 10px;
+}
+
+    </style>
 
 
 </body>
