@@ -114,31 +114,53 @@
 
 <script>
 let grafico = null;
+let dadosAnteriores = null;
 
-async function carregarDados() {
-    const resp = await fetch('/admin/data');
-    const dados = await resp.json();
+async function carregarDados(auto = false) {
+  const resp = await fetch('/admin/data');
+  const dados = await resp.json();
 
-    document.getElementById('presentes').textContent = dados.presentes;
-    document.getElementById('votaram').textContent = dados.votaram;
-    document.getElementById('faltam').textContent = dados.faltam;
-    document.getElementById('turno_atual').textContent = dados.turno_atual;
+  // Se houver novos votos, anima!
+  if (auto && dadosAnteriores) {
+    const mudanca = Object.keys(dados.votos).some(
+      c => dados.votos[c] !== dadosAnteriores.votos[c]
+    );
+    if (mudanca) animarAtualizacao();
+  }
 
-    const tbody = document.querySelector('#tabela tbody');
-    tbody.innerHTML = '';
-    dados.candidatos.forEach(c => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${c}</td>
-            <td>${dados.votos[c] || 0}</td>
-            <td>${dados.percent[c] || 0}%</td>
-        `;
-        tbody.appendChild(tr);
-    });
+  dadosAnteriores = dados;
 
-    atualizarGrafico(dados);
-    preencherFormulario(dados);
+  document.getElementById('presentes').textContent = dados.presentes;
+  document.getElementById('votaram').textContent = dados.votaram;
+  document.getElementById('faltam').textContent = dados.faltam;
+  document.getElementById('turno_atual').textContent = dados.turno_atual;
+
+  const tbody = document.querySelector('#tabela tbody');
+  tbody.innerHTML = '';
+  dados.candidatos.forEach(c => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${c}</td>
+      <td>${dados.votos[c] || 0}</td>
+      <td>${dados.percent[c] || 0}%</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  atualizarGrafico(dados);
 }
+
+function animarAtualizacao() {
+  const tabela = document.querySelector('#tabela');
+  tabela.classList.add('piscar');
+  setTimeout(() => tabela.classList.remove('piscar'), 700);
+
+  setTimeout(() => aviso.remove(), 1500);
+}
+
+// Recarrega a cada 2 segundos automaticamente
+setInterval(() => carregarDados(true), 2000);
+
 
 function atualizarGrafico(dados) {
     const ctx = document.getElementById('grafico').getContext('2d');
@@ -339,17 +361,21 @@ async function carregarEleitores() {
 
         listaDiv.innerHTML = "";
         Object.entries(eleitores).forEach(([cpf, dados]) => {
-            const div = document.createElement("div");
-            div.className = "cpf-item";
-            div.innerHTML = `
-                <span><strong>${cpf}</strong> - ${dados.votou ? "✅ Votou" : "❌ Não votou"}</span>
-                <div>
-                    <button class="btn btn-sm btn-warning me-1" onclick="editarEleitor('${cpf}')">Editar</button>
-                    <button class="btn btn-sm btn-danger" onclick="removerEleitor('${cpf}')">Excluir</button>
-                </div>
-            `;
-            listaDiv.appendChild(div);
-        });
+        // Descobre turno atual exibido no painel
+        const turnoAtual = document.getElementById('turno_atual').textContent.trim();
+        const votouNoTurno = dados.votou_turnos?.[turnoAtual] === true;
+
+        const div = document.createElement("div");
+        div.className = "cpf-item";
+        div.innerHTML = `
+            <span><strong>${cpf}</strong> - ${votouNoTurno ? "✅ Votou" : "❌ Não votou"}</span>
+            <div>
+                <button class="btn btn-sm btn-warning me-1" onclick="editarEleitor('${cpf}')">Editar</button>
+                <button class="btn btn-sm btn-danger" onclick="removerEleitor('${cpf}')">Excluir</button>
+            </div>
+        `;
+        listaDiv.appendChild(div);
+    });
     } catch (err) {
         listaDiv.innerHTML = "<p class='text-danger'>Erro ao carregar eleitores.</p>";
     }
@@ -428,6 +454,20 @@ document.getElementById("salvarConfig").addEventListener("click", salvarConfig);
 carregarDados();
 </script>
 <style>
+.piscar {
+  animation: brilho 0.7s ease;
+}
+@keyframes brilho {
+  0% { box-shadow: 0 0 0px rgba(255,255,0,0); }
+  50% { box-shadow: 0 0 15px rgba(255,255,0,0.6); }
+  100% { box-shadow: 0 0 0px rgba(255,255,0,0); }
+}
+@keyframes aparecer {
+  0% { opacity: 0; transform: translateY(20px); }
+  30% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+
 .admin-eleitores {
   margin-top: 2rem;
   background: #f7f7f7;

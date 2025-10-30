@@ -53,9 +53,38 @@ def ler_json_seguro(path, padrao):
 
 
 def carregar_eleitores():
+    """
+    Retorna um dicionário { cpf: { 'votou_turnos': { '1º Turno': False, ... }, ... } }
+    Faz migração automática caso o arquivo tenha formato antigo.
+    """
     try:
         with open(ARQ_ELEITORES, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            raw = json.load(f)
+            if not isinstance(raw, dict):
+                return {}
+            # garante estrutura por turnos
+            config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
+            turnos = config.get('turnos', ["1º Turno", "2º Turno", "3º Turno"])
+            migrated = False
+            for cpf, info in list(raw.items()):
+                # se já estiver no formato novo, só garante chaves
+                if isinstance(info, dict) and 'votou_turnos' in info:
+                    for t in turnos:
+                        info['votou_turnos'].setdefault(t, False)
+                else:
+                    # formato antigo: info == {'votou': True/False} ou apenas True/False
+                    votou_val = False
+                    if isinstance(info, dict):
+                        votou_val = bool(info.get('votou'))
+                    else:
+                        votou_val = bool(info)
+                    raw[cpf] = {'votou_turnos': {t: votou_val for t in turnos}}
+                    migrated = True
+            if migrated:
+                # salva migração
+                with open(ARQ_ELEITORES, 'w', encoding='utf-8') as f2:
+                    json.dump(raw, f2, indent=4, ensure_ascii=False)
+            return raw
     except FileNotFoundError:
         return {}
     except Exception:
@@ -193,8 +222,11 @@ def verificar_cpf():
     if cpf not in eleitores:
         return jsonify({'erro': 'CPF não cadastrado.'}), 400
 
-    if eleitores[cpf].get('votou'):
-        return jsonify({'erro': 'Este CPF já votou!'}), 400
+    config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
+    turno_atual = config.get('turno_atual', '1º Turno')
+    if eleitores[cpf].get('votou_turnos', {}).get(turno_atual):
+        return jsonify({'erro': 'Este CPF já votou neste turno!'}), 400
+
 
     # salva na sessão
     session['cpf'] = cpf
@@ -220,12 +252,6 @@ def votar():
     if not cpf:
         return jsonify({'erro': 'Sessão expirada. Faça login novamente.'}), 403
 
-    eleitores = carregar_eleitores()
-    if cpf not in eleitores:
-        return jsonify({'erro': 'CPF inválido.'}), 403
-    if eleitores[cpf].get('votou'):
-        return jsonify({'erro': 'CPF já votou.'}), 403
-
     # lê votos por turno (estrutura esperada: { "1º turno": {cand: qtd}, "2º turno": {...} })
     votos_por_turno = ler_json_seguro(ARQ_VOTOS, {t: {} for t in turnos})
     votos_por_turno.setdefault(turno_atual, {})
@@ -247,16 +273,40 @@ def votar():
         else:
             invalidados.append(v)
 
-    # marca eleitor como votou
-    eleitores[cpf]['votou'] = True
-    salvar_eleitores(eleitores)
-
-    # atualiza contador 'votaram' com base nos eleitores (mais confiável)
+    # --- Marca eleitor como votou apenas no turno atual ---
     try:
-        total_votaram = sum(1 for info in eleitores.values() if info.get('votou'))
-        config['votaram'] = total_votaram
-    except Exception:
-        config['votaram'] = config.get('votaram', 0) + 1
+        eleitores = carregar_eleitores()
+        if cpf not in eleitores:
+            return jsonify({'erro': 'CPF inválido.'}), 403
+
+        # Garante que o eleitor tenha a estrutura dos 3 turnos
+        turnos = config.get('turnos', ["1º Turno", "2º Turno", "3º Turno"])
+        eleitores[cpf].setdefault('votou_turnos', {t: False for t in turnos})
+
+        # Marca o voto apenas no turno atual
+        turno_atual = config.get('turno_atual', turnos[0])
+        eleitores[cpf]['votou_turnos'][turno_atual] = True
+
+        # Salva no arquivo
+        salvar_eleitores(eleitores)
+
+        # Atualiza contagem de quem votou neste turno
+        cpfs_votaram = [
+            c for c, info in eleitores.items()
+            if info.get('votou_turnos', {}).get(turno_atual)
+        ]
+        config['votaram'] = len(cpfs_votaram)
+
+    except Exception as e:
+        print(f"⚠️ Erro ao atualizar status de voto: {e}")
+
+        # atualiza contagem 'votaram' para o turno atual
+        try:
+            total_votaram_turno = sum(1 for info in eleitores.values()
+                                    if info.get('votou_turnos', {}).get(turno_atual))
+            config['votaram'] = total_votaram_turno
+        except Exception:
+            config['votaram'] = config.get('votaram', 0) + 1
 
     # salva votos e config
     with open(ARQ_VOTOS, 'w', encoding='utf-8') as f:
@@ -347,10 +397,14 @@ def admin_data():
 
     # se houver eleitores.json, calcule 'votaram' a partir dele para garantir consistência
     eleitores = carregar_eleitores()
+    cpfs_votaram = []
     if isinstance(eleitores, dict):
-        votaram = sum(1 for info in eleitores.values() if info.get('votou'))
+        cpfs_votaram = [cpf for cpf, info in eleitores.items()
+                        if info.get('votou_turnos', {}).get(turno_atual)]
+        votaram = len(cpfs_votaram)
     else:
         votaram = config.get('votaram', 0)
+
 
     faltam = max(0, presentes - votaram)
 
@@ -359,7 +413,7 @@ def admin_data():
     for c in candidatos_do_turno:
         percent[c] = round((votos_do_turno.get(c, 0) / presentes * 100) if presentes else 0, 2)
 
-    resp = {
+        resp = {
         'presentes': presentes,
         'votaram': votaram,
         'faltam': faltam,
@@ -368,7 +422,8 @@ def admin_data():
         'candidatos': candidatos_do_turno,
         'votos': votos_do_turno,
         'percent': percent,
-        'candidatos_por_turno': config.get('candidatos_por_turno', {})
+        'candidatos_por_turno': config.get('candidatos_por_turno', {}),
+        'cpfs_votaram': cpfs_votaram
     }
     return jsonify(resp)
 
@@ -378,13 +433,11 @@ def admin_update_config():
     dados = request.get_json(force=True)
     config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
 
-    # --- Inicializa 3 turnos fixos ---
     turnos_padrao = ["1º Turno", "2º Turno", "3º Turno"]
     config.setdefault('turnos', turnos_padrao)
     config.setdefault('turno_atual', turnos_padrao[0])
-
-    # --- Garantir estrutura candidatos_por_turno no config ---
     config.setdefault('candidatos_por_turno', {})
+
     if not config['candidatos_por_turno'].get(turnos_padrao[0]):
         if config.get('candidatos'):
             config['candidatos_por_turno'][turnos_padrao[0]] = [c['nome'] for c in config['candidatos']]
@@ -394,12 +447,10 @@ def admin_update_config():
     for t in turnos_padrao:
         config['candidatos_por_turno'].setdefault(t, [])
 
-    # Lê votos organizados por turno
     votos_por_turno = ler_json_seguro(ARQ_VOTOS, {t: {} for t in turnos_padrao})
     for t in turnos_padrao:
         votos_por_turno.setdefault(t, {})
 
-    # Garante que todos os candidatos existam nas contagens de votos (para o turno atual)
     turno_atual = config['turno_atual']
     nomes_turno_atual = config['candidatos_por_turno'].get(turno_atual, [])
     for n in nomes_turno_atual:
@@ -412,7 +463,7 @@ def admin_update_config():
         except Exception:
             pass
 
-    # --- Atualiza turnos se fornecido (mantém padrão se vazio) ---
+    # --- Atualiza lista de turnos ---
     if 'turnos_text' in dados:
         turnos = [t.strip() for t in dados['turnos_text'].split(',') if t.strip()]
         if turnos:
@@ -422,11 +473,59 @@ def admin_update_config():
             if config.get('turno_atual') not in turnos:
                 config['turno_atual'] = turnos[0]
 
-    # --- Atualiza turno atual ---
+        # --- Atualiza turno atual ---
     if 'turno_atual' in dados:
         turno_selecionado = dados['turno_atual']
         if turno_selecionado in config.get('turnos', []):
-            config['turno_atual'] = turno_selecionado
+            turno_anterior = config.get('turno_atual')
+
+            # ⚙️ Só processa se for realmente uma troca de turno
+            if turno_selecionado != turno_anterior:
+                try:
+                    eleitores = carregar_eleitores()
+                except Exception:
+                    eleitores = {}
+
+                # ✅ Se o turno ainda não existir, cria ele zerado
+                if turno_selecionado not in votos_por_turno:
+                    candidatos = config['candidatos_por_turno'].get(turno_selecionado, [])
+                    votos_por_turno[turno_selecionado] = {c: 0 for c in candidatos}
+
+                    # Garante que os eleitores tenham o campo votou_turnos
+                    turnos = config.get('turnos', ["1º Turno", "2º Turno", "3º Turno"])
+                    for cpf, info in eleitores.items():
+                        info.setdefault('votou_turnos', {t: False for t in turnos})
+                        info['votou_turnos'][turno_selecionado] = False
+                    salvar_eleitores(eleitores)
+
+                    print(f"🆕 Turno novo criado: {turno_selecionado}")
+                else:
+                    print(f"🔁 Voltando para turno existente: {turno_selecionado} (mantendo votos).")
+
+                # Atualiza o turno ativo
+                config['turno_atual'] = turno_selecionado
+
+                # --- Conta quem votou no turno atual ---
+                cpfs_votaram = [
+                    cpf for cpf, info in eleitores.items()
+                    if info.get('votou_turnos', {}).get(turno_selecionado)
+                ]
+                num_votaram = len(cpfs_votaram)
+                config['votaram'] = num_votaram
+
+                # --- Salva alterações ---
+                with open(ARQ_VOTOS, 'w', encoding='utf-8') as f:
+                    json.dump(votos_por_turno, f, indent=4, ensure_ascii=False)
+                with open(ARQ_CONFIG, 'w', encoding='utf-8') as f:
+                    json.dump(config, f, indent=4, ensure_ascii=False)
+
+                # --- Retorna tudo pro front ---
+                return jsonify({
+                    'mensagem': f'Turno alterado para {turno_selecionado}.',
+                    'turno': turno_selecionado,
+                    'votaram': num_votaram,
+                    'cpfs_votaram': cpfs_votaram
+                })
 
     # --- Atualiza candidatos ---
     if 'candidatos_text' in dados:
@@ -437,21 +536,30 @@ def admin_update_config():
         alvo = dados.get('turno_for_candidates') or config.get('turno_atual') or turnos_padrao[0]
         config['candidatos_por_turno'][alvo] = lista
 
-    # --- Resetar votos (zera todos os turnos + status dos eleitores) ---
+    # --- Resetar votos manualmente ---
     if dados.get('reset_votos'):
         for turno in config['turnos']:
             candidatos = config['candidatos_por_turno'].get(turno, [])
             votos_por_turno[turno] = {c: 0 for c in candidatos}
         config['votaram'] = 0
 
-        # Zera status de quem já votou (no arquivo eleitores.json)
         try:
             eleitores = carregar_eleitores()
+            config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
+            turnos = config.get('turnos', ["1º Turno", "2º Turno", "3º Turno"])
+
             for cpf, info in eleitores.items():
-                info['votou'] = False
+                # Garante que a estrutura votou_turnos exista
+                info.setdefault('votou_turnos', {t: False for t in turnos})
+
+                # Reseta todos os turnos pra False (ninguém votou)
+                for t in turnos:
+                    info['votou_turnos'][t] = False
+
             salvar_eleitores(eleitores)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Erro ao zerar eleitores: {e}")
+
 
     # --- Salva alterações ---
     with open(ARQ_VOTOS, 'w', encoding='utf-8') as f:
@@ -460,6 +568,7 @@ def admin_update_config():
         json.dump(config, f, indent=4, ensure_ascii=False)
 
     return jsonify({'mensagem': 'Configurações atualizadas com sucesso.'})
+
 
 # === ROTAS DE ELEITORES (FUNCIONAIS) ===
 
@@ -473,20 +582,22 @@ def listar_eleitores():
 @app.route('/admin/eleitores', methods=['POST'])
 @login_obrigatorio
 def adicionar_eleitor():
-    """Adiciona um novo eleitor"""
     dados = request.get_json(force=True)
-    cpf = dados.get('cpf', '').strip()
-
+    cpf = (dados.get('cpf') or '').strip()
     if not cpf or not cpf.isdigit():
-        return jsonify({'erro': 'CPF inválido!'}), 400
+        return jsonify({'erro': 'CPF inválido. Use apenas números.'}), 400
 
     eleitores = carregar_eleitores()
     if cpf in eleitores:
-        return jsonify({'erro': 'CPF já cadastrado!'}), 400
+        return jsonify({'erro': 'CPF já cadastrado.'}), 400
 
-    eleitores[cpf] = {'votou': False}
+    # garante turnos atuais na configuração
+    config = ler_json_seguro(ARQ_CONFIG, PADRAO_CONFIG)
+    turnos = config.get('turnos', ["1º Turno", "2º Turno", "3º Turno"])
+    eleitores[cpf] = {'votou_turnos': {t: False for t in turnos}}
+
     salvar_eleitores(eleitores)
-    return jsonify({'mensagem': f'Eleitor {cpf} adicionado com sucesso!'})
+    return jsonify({'mensagem': f'CPF {cpf} cadastrado com sucesso!'})
 
 
 @app.route('/admin/eleitores', methods=['PUT'])
@@ -538,6 +649,12 @@ def excluir_todos_eleitores():
     with open(ARQ_CONFIG, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=4, ensure_ascii=False)
     return jsonify({'mensagem': 'Todos os eleitores foram apagados com sucesso.'})
+
+@app.route('/admin/eleitores', methods=['GET'])
+def listar_eleitores_api():
+    eleitores = carregar_eleitores()
+    # Retorna estrutura: { cpf: { votou_turnos: { ... } } }
+    return jsonify(eleitores)
 
 
 

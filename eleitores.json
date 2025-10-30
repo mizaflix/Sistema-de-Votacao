@@ -1,5 +1,9 @@
 {
     "03893829229": {
-        "votou": false
+        "votou_turnos": {
+            "1º Turno": false,
+            "2º Turno": false,
+            "3º Turno": false
+        }
     }
 }
