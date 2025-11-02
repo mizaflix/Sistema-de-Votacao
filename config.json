@@ -5,7 +5,7 @@
         "3º Turno"
     ],
     "turno_atual": "1º Turno",
-    "presentes": 120,
+    "presentes": 3,
     "candidatos": [
         {
             "nome": "Aluizo",
@@ -58,15 +58,20 @@
         {
             "nome": "Tiago",
             "foto": "tiago.png"
+        },
+        {
+            "nome": "Voto Nulo",
+            "foto": null
         }
     ],
-    "votaram": 2,
+    "votaram": 1,
     "candidatos_por_turno": {
         "1º Turno": [
             "Hernanes",
             "Nicodemus",
             "Tiago",
             "Jonas",
+            "Fabio",
             "Voto Nulo"
         ],
         "2º Turno": [

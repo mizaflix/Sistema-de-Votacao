@@ -1,6 +1,20 @@
 {
     "03893829229": {
         "votou_turnos": {
+            "1º Turno": true,
+            "2º Turno": false,
+            "3º Turno": false
+        }
+    },
+    "12345678910": {
+        "votou_turnos": {
+            "1º Turno": false,
+            "2º Turno": false,
+            "3º Turno": false
+        }
+    },
+    "12345678912": {
+        "votou_turnos": {
             "1º Turno": false,
             "2º Turno": false,
             "3º Turno": false

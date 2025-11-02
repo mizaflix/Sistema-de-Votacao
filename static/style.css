@@ -1,20 +1,79 @@
-body {
-  font-family: Arial, sans-serif;
-  margin: 0;
-  text-align: center;
-  background: #f4f4f4;
+/* === RESET E GERAL === */
+* { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
 }
 
-/* Cabeçalho */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    text-align: center;
+    background: #f0f4fa;
+    color: #333;
+    line-height: 1.6;
+}
+
+main {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 0 15px;
+}
+
+section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    padding: 20px;
+    margin-bottom: 25px;
+    text-align: left;
+}
+
+h1, h2, h3, h4 {
+    color: #49886e;
+    margin-bottom: 15px;
+}
+
+h2 {
+    border-bottom: 2px solid #f0f4fa;
+    padding-bottom: 10px;
+}
+
+button {
+    background: #49886e;
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1em;
+    transition: background 0.2s, transform 0.2s;
+}
+
+button:hover {
+    background: #3a7553;
+    transform: translateY(-2px);
+}
+
+button:disabled {
+    background: #999;
+    cursor: not-allowed;
+}
+
+button.danger { background: #d9534f; }
+button.danger:hover { background: #c13e3a; }
+
+/* === CABEÇALHO (Header) === */
 header {
     background: linear-gradient(135deg, #49886e, #689d5c);
     color: white;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 40px;
-    box-shadow: 0 3px 10px #49886e;
+    padding: 12px 20px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
 }
+
 .logo-container {
     display: flex;
     align-items: center;
@@ -27,9 +86,10 @@ header {
 }
 
 header h1 {
-    font-size: 20px;
+    font-size: 1.3em;
     font-weight: bold;
     margin: 0;
+    color: white;
 }
 
 .admin-link {
@@ -37,78 +97,86 @@ header h1 {
     font-weight: 600;
     text-decoration: none;
     transition: opacity 0.2s;
+    font-size: 0.9em;
 }
 
 .admin-link:hover {
-    color: #1b4332;
     opacity: 0.8;
 }
 
+/* === PÁGINA DE VOTAÇÃO (INDEX) === */
 .grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin: 0 40px;
+    display: grid;
+    /* CSS Grid responsivo: 
+    - Tenta criar colunas de 190px.
+    - Se não couber, quebra a linha.
+    - 'auto-fit' vs 'auto-fill': 'auto-fit' expande os itens.
+    */
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+    padding: 10px;
+}
+
+.card {
+    background: linear-gradient(135deg, #49886e, #689d5c);
+    border: 2px solid #e0e0e0;
+    color: #333;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    padding: 15px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.card:hover { 
+    transform: scale(1.03); 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.card.card-nulo {
+    background-color: #f5f5f5;
+}
+
+/* Fotos e Avatares */
+.foto {
+    width: 170px;
+    height: 180px;
+    border-radius: 8px;
+    object-fit: cover;
+}
+.foto-padrao {
+    width: 120px;
+    height: 120px;
+    border-radius: 8px;
+    background: #e0e0e0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #555;
+    font-size: 1.1em;
+    font-weight: bold;
+    word-break: break-word;
 }
 .nome-candidato {
-  margin-top: 10px;
-  color: #ffffff; /* ou outra cor que combine */
-  font-weight: bold;
+    margin-top: 10px;
+    color: #222;
+    font-weight: bold;
+    font-size: 1.1em;
 }
 
-.foto{
-  height: 4.4cm;
-  width: 4.3cm;
-  border-radius: 2px;
-}
-.card {
-  background-color: #1b4332;
-  border: 4px solid #1b4332;
-  color: white;
-  height: 4.5cm;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: transform 0.15s;
-  flex: 1 1 200px; /* mínimo 300px */
-  max-width: 4.5cm;
-  margin: 10px;
-  padding: 30px;
-}
-.card-nulo{
-  background-color: #1b4332;
-  border: 4px solid #1b4332;
-  color: white;
-  height: 4.5cm;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: transform 0.15s;
-  flex: 1 1 200px; /* mínimo 300px */
-  max-width: 4.5cm;
-  margin: 10px;
-  padding: 30px;
-}
-
-.card:hover { transform: scale(1.03); }
-/* === ACESSIBILIDADE: CANDIDATO SELECIONADO === */
+/* Card Selecionado (Acessibilidade) */
 .card.selecionado {
-  position: relative;
-  border: 5px solid #00c853; /* verde forte e visível */
-  box-shadow: 0 0 25px rgba(0, 200, 83, 0.9);
-  transform: scale(1.06);
-  background-color: #e8f5e9; /* leve contraste verde-claro no fundo */
-  animation: focoAcessivel 1s ease-in-out infinite alternate;
+    border: 4px solid #00c853;
+    box-shadow: 0 0 20px rgba(73, 136, 110, 0.6);
+    transform: scale(1.05);
+    background-color: #f0f9f5;
 }
-
 /* Ícone de confirmação (✔️) visível para quem tem dificuldade de cor */
 .card.selecionado::after {
   content: "✔ VOTO SELECIONADO";
@@ -125,422 +193,308 @@ header h1 {
   letter-spacing: 0.5px;
 }
 
-/* Efeito pulsante visível */
-@keyframes focoAcessivel {
-  from {
-    box-shadow: 0 0 10px rgba(0, 200, 83, 0.6);
-  }
-  to {
-    box-shadow: 0 0 35px rgba(0, 200, 83, 1);
-  }
-}
-
-/* === VOTO NULO (versão acessível em vermelho) === */
-.card-nulo.selecionado {
-  position: relative;
-  border: 5px solid #e63946;
-  box-shadow: 0 0 25px rgba(230, 57, 70, 0.9);
-  background-color: #ffe5e9;
-  transform: scale(1.06);
-  animation: focoAcessivelNulo 1s ease-in-out infinite alternate;
-}
-
-.card-nulo.selecionado::after {
-  content: "✖ VOTO NULO";
-  position: absolute;
-  bottom: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #e63946;
-  color: white;
-  font-weight: bold;
-  padding: 3px 10px;
-  border-radius: 6px;
-  font-size: 0.9em;
-  letter-spacing: 0.5px;
-}
-
-@keyframes focoAcessivelNulo {
-  from {
-    box-shadow: 0 0 10px rgba(230, 57, 70, 0.6);
-  }
-  to {
-    box-shadow: 0 0 35px rgba(230, 57, 70, 1);
-  }
-}
-
-/* Foco de teclado acessível (para quem navega sem mouse) */
-.card:focus {
-  outline: 4px solid #ffcc00;
-  outline-offset: 4px;
+.card.card-nulo.selecionado {
+    border-color: #d9534f;
+    box-shadow: 0 0 20px rgba(217, 83, 79, 0.6);
+    background-color: #fdf5f5;
 }
 
 
 #confirmar {
-  margin-top: 18px;
-  background-color: #1b4332;
-  color: white;
-  border: none;
-  padding: 10px 22px;
-  border-radius: 6px;
-  cursor: pointer;
+    margin-top: 20px;
+    padding: 12px 25px;
+    font-size: 1.1em;
+}
+#contador { 
+    font-weight: bold; 
+    color: #3a7553; 
+    margin-bottom: 15px; 
+    font-size: 1.1em;
+    text-align: center;
 }
 
-#contador { font-weight: bold; color: #2d6a4f; margin-bottom: 10px; }
+/* === PÁGINA ADMIN === */
 
-/* === ESTILO GERAL admin === */
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: #f0f4fa;
-            color: #689d5c;
-            padding-bottom: 40px;
-        }
-
-        .header-admin {
-            background: linear-gradient(135deg, #49886e, #689d5c);
-            color: white;
-            padding: 25px;
-            text-align: center;
-            font-size: 1.8em;
-            letter-spacing: 1px;
-            box-shadow: 0 3px 10px #49886e;
-        }
-
-        main {
-            max-width: 1100px;
-            margin: 30px auto;
-            padding: 0 20px;
-        }
-
-        section {
-            background: white;
-            border-radius: 14px;
-            box-shadow: 0 4px 10px #689d5c;
-            padding: 25px;
-            margin-bottom: 30px;
-            transition: all 0.2s ease;
-        }
-
-        section:hover { transform: translateY(-2px); }
-
-        h2 {
-            color: #689d5c;
-            border-left: 5px solid #49886e;
-            padding-left: 10px;
-            margin-bottom: 20px;
-            font-size: 1.4em;
-        }
-
-        /* === ESTATÍSTICAS === */
-        .stats {
-            display: flex;
-            justify-content: space-around;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-
-        .stat {
-            flex: 1;
-            min-width: 200px;
-            background: linear-gradient(135deg, #e8f0ff, #f5f8ff);
-            border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-            color: #689d5c;
-            font-weight: 600;
-            box-shadow: 0 2px 6px #49886e;
-        }
-
-        /* === TABELA === */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: center;
-        }
-
-        th {
-            background: #49886e;
-            color: white;
-            padding: 12px;
-        }
-
-        td {
-            padding: 10px;
-            border-bottom: 1px solid #ddd;
-        }
-
-        tr:nth-child(even) { background-color: #f8f9fc; }
-
-        /* === GRÁFICO === */
-        #chart-container {
-            margin-top: 30px;
-            padding: 15px;
-        }
-
-        /* === CONFIGURAÇÕES === */
-        .config-container {
-            position: relative;
-            padding: 20px;
-        }
-
-        .config-toggle {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: none;
-            border: none;
-            cursor: pointer;
-        }
-
-        .config-toggle img {
-            width: 32px;
-            height: 32px;
-            transition: transform 0.3s;
-        }
-
-        .config-toggle:hover img {
-            transform: rotate(45deg);
-        }
-
-        .config-content {
-            display: none;
-            margin-top: 30px;
-            animation: fadeIn 0.4s ease forwards;
-        }
-
-        .config-content.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        label {
-            display: block;
-            margin-top: 10px;
-            font-weight: 600;
-            color: #49886e;
-        }
-
-        textarea, input, select {
-            width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-            background: #fafafa;
-            font-size: 0.95em;
-        }
-
-        button {
-            margin-top: 20px;
-            background: #49886e;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: background 0.3s;
-        }
-
-        button:hover { background: #49886e; }
-
-        .danger { background: #d62d20; }
-        .danger:hover { background: #b51f14; }
-
-        footer {
-            text-align: center;
-            color: #689d5c;
-            font-size: 0.9em;
-            margin-top: 40px;
-        }
-/* Voto nulo */
-.card.nulo {
-  background-color: #3a7553;
-  color: white;
-  height: 160px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: transform 0.15s;
-  flex: 1 1 300px; /* mínimo 300px */
-  max-width: 400px;
-  margin: 10px;
-  padding: 20px;
-}
-.card.nulo:hover { transform: scale(1.03); }
-.card.nulo.selecionado { border: 4px solid #1b4332; background:#40916c; }
-/* Campo de novo turno */
-#novo-turno-container {
-  margin-top: 15px;
-  background: #f5f8f5;
-  border-radius: 8px;
-  padding: 10px;
-  box-shadow: inset 0 0 4px #cfe3d6;
-}
-.toast {
-  visibility: hidden;
-  min-width: 280px;
-  background-color: #1d3557;
-  color: #fff;
-  text-align: center;
-  border-radius: 8px;
-  padding: 14px 16px;
-  position: fixed;
-  z-index: 1000;
-  left: 50%;
-  bottom: 40px;
-  transform: translateX(-50%);
-  font-weight: 500;
-  font-size: 16px;
-  opacity: 0;
-  transition: opacity 0.5s, bottom 0.5s;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+/* Resumo (Stats) */
+.stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
 }
 
-.toast.mostrar {
-  visibility: visible;
-  opacity: 1;
-  bottom: 60px;
+.stat {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    color: #49886e;
+    font-weight: 600;
+    font-size: 1.1em;
+    border: 1px solid #e0e0e0;
+}
+.stat span {
+    display: block;
+    font-size: 1.8em;
+    color: #333;
 }
 
-.toast.sucesso {
-  background-color: #2a9d8f;
+/* Tabela de Resultados e Eleitores */
+/* Torna a tabela rolável em ecrãs pequenos */
+#tabelaResultados, #tabelaEleitores {
+    width: 100%;
+    min-width: 600px; /* Força a rolagem horizontal se for menor que 600px */
+    border-collapse: collapse;
+    text-align: center;
+}
+/* Container que permite a rolagem */
+#chart-container, #listaEleitoresContainer {
+    overflow-x: auto;
+    margin-top: 20px;
 }
 
-.toast.erro {
-  background-color: #e63946;
+th {
+    background: #49886e;
+    color: white;
+    padding: 12px;
+}
+td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+}
+tr:nth-child(even) { background-color: #f8f9fc; }
+
+/* Gráfico */
+#chart-container {
+    padding: 15px 0;
 }
 
-.toast.info {
-  background-color: #457b9d;
+/* Configurações */
+.config-container {
+    position: relative;
+}
+.config-toggle {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: none;
+    border: none;
+    padding: 0;
+}
+.config-toggle:hover { background: none; transform: rotate(45deg); }
+.config-toggle img {
+    width: 32px;
+    height: 32px;
+    transition: transform 0.3s;
 }
 
-.turno-section, .turno-extra, .presenca-section {
-  margin-top: 10px;
+.config-content {
+    display: none;
+    margin-top: 20px;
+    animation: fadeIn 0.4s ease forwards;
+}
+.config-content.active {
+    display: block;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.campo-config, .eleitor-form, .botoes-config, .botoes-eleitores {
+    margin: 15px 0;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #3a7553;
+}
+
+textarea, input[type="text"], input[type="tel"], select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    background: #fafafa;
+    font-size: 1em;
+    /* Importante para inputs em mobile não quebrarem o layout */
+    box-sizing: border-box; 
 }
 
 .hint {
-  display: block;
-  font-size: 0.8em;
-  color: #666;
-  margin-top: 3px;
+    display: block;
+    font-size: 0.85em;
+    color: #666;
+    margin-top: 3px;
 }
 
-.botoes-config {
-  margin-top: 15px;
-  display: block;
-  gap: 10px;
-  text-align: center;
+.botoes-config, .botoes-eleitores {
+    display: flex;
+    flex-wrap: wrap; /* Quebra a linha em ecrãs pequenos */
+    gap: 10px;
 }
- /* === MODAL DE CONFIRMAÇÃO === */
-    .modal-overlay {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.6);
-      display: none;
-      justify-content: center;
-      align-items: center;
-      z-index: 999;
-    }
-    .modal {
-      background: #fff;
-      padding: 25px;
-      border-radius: 15px;
-      text-align: center;
-      box-shadow: 0 0 20px rgba(0,0,0,0.3);
-      max-width: 400px;
-      width: 90%;
-      animation: fadeIn 0.3s ease;
-    }
-    .modal h2 {
-      margin-top: 0;
-      font-size: 1.4em;
-      color: #333;
-    }
-    .modal p {
-      margin: 10px 0 20px;
-      color: #555;
-    }
-    .modal button {
-      border: none;
-      padding: 10px 18px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: bold;
-      transition: 0.2s;
-      margin: 0 8px;
-    }
-    .btn-confirmar {
-      background-color: #3a7553;
-      color: white;
-    }
-    .btn-cancelar {
-      background-color: #d9534f;
-      color: white;
-    }
-    .btn-confirmar:hover { background-color: #3a7553; }
-    .btn-cancelar:hover { background-color: #c13e3a; }
- /* === TOAST BONITO === */
-    .toast {
-      visibility: hidden;
-      min-width: 260px;
-      background-color: #333;
-      color: #fff;
-      text-align: center;
-      border-radius: 8px;
-      padding: 12px;
-      position: fixed;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 1000;
-      opacity: 0;
-      transition: opacity 0.4s, bottom 0.4s;
-      font-weight: 500;
-    }
-    .toast.mostrar {
-      visibility: visible;
-      opacity: 1;
-      bottom: 50px;
-    }
-    .toast.sucesso { background-color: #3a7553; }
-    .toast.erro { background-color: #dc3545; }
-@media (max-width: 768px) {
-  body {
-    font-size: 14px;
-  }
-  
-  .header {
-    flex-direction: column;
+.botoes-config button, .botoes-eleitores button {
+    flex: 1 1 200px; /* Cresce, encolhe, base de 200px */
+}
+
+/* Painel de Eleitores */
+.admin-eleitores {
+    margin-top: 25px;
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+}
+.admin-eleitores h4 {
+    text-align: center;
+    font-size: 1.3em;
+}
+.eleitor-form {
+    display: flex;
+    gap: 10px;
+}
+.eleitor-form input {
+    flex: 3;
+}
+.eleitor-form button {
+    flex: 1;
+}
+
+#msgAdd {
+    text-align: center;
+    color: #d9534f;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.btn-sm {
+    padding: 5px 8px;
+    font-size: 0.8em;
+}
+.btn-editar { background: #007bff; }
+.btn-editar:hover { background: #0056b3; }
+.btn-excluir { background: #d9534f; }
+.btn-excluir:hover { background: #c13e3a; }
+
+
+/* === MODAL E TOAST (Feedback) === */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    justify-content: center;
     align-items: center;
-  }
-
-  .chart-container {
-    width: 100%;
-    margin: 0;
-  }
-
-  .config-panel {
+    z-index: 999;
+}
+.modal {
+    background: #fff;
+    padding: 25px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    max-width: 400px;
     width: 90%;
-    margin: 20px auto;
-  }
+    animation: fadeIn 0.3s ease;
+}
+.modal h2 { margin-top: 0; }
+.modal p { margin: 10px 0 20px; }
+.modal button { margin: 0 8px; }
+.btn-confirmar { background-color: #3a7553; }
+.btn-cancelar { background-color: #d9534f; }
 
-  button {
-    width: 100%;
-  }
+.toast {
+    visibility: hidden;
+    min-width: 280px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 8px;
+    padding: 14px 16px;
+    position: fixed;
+    z-index: 1000;
+    left: 50%;
+    bottom: 40px;
+    transform: translateX(-50%);
+    font-weight: 500;
+    font-size: 1em;
+    opacity: 0;
+    transition: opacity 0.5s, bottom 0.5s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
-.container {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 1rem;
+.toast.mostrar {
+    visibility: visible;
+    opacity: 1;
+    bottom: 60px;
 }
+.toast.sucesso { background-color: #2a9d8f; }
+.toast.erro { background-color: #e63946; }
+
+/* === MEDIA QUERIES (Responsividade) === */
+
+@media (max-width: 768px) {
+    header {
+        flex-direction: column;
+        gap: 10px;
+        padding: 15px;
+    }
+    header h1 { font-size: 1.2em; }
+    main { padding: 0 10px; }
+    section { padding: 15px; }
+
+    .grid {
+        /* Em tablets, 3 colunas no máximo */
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 15px;
+    }
+
+    .stat {
+        min-width: 150px;
+        font-size: 1em;
+    }
+    .stat span { font-size: 1.5em; }
+}
+
+@media (max-width: 480px) {
+    body {
+        font-size: 14px;
+    }
+    
+    .grid {
+        /* Em telemóveis, 2 colunas */
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .card {
+        min-height: 160px;
+    }
+    .foto-candidato, .foto-padrao {
+        width: 80px;
+        height: 80px;
+    }
+    .nome-candidato {
+        font-size: 0.9em;
+    }
+
+    .stats {
+        /* Em telemóveis, 2 colunas */
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .eleitor-form {
+        flex-direction: column;
+    }
+    .eleitor-form input, .eleitor-form button {
+        width: 100%;
+    }
+
+    .modal button {
+        display: block;
+        width: 100%;
+        margin: 8px 0;
+    }
+}
+

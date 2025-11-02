@@ -1,225 +1,207 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ELEIÇÕES - IPJARDIM</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Votação</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-   <!-- Cabeçalho -->
+
+<!-- === CONTEÚDO PRINCIPAL (Votação) === -->
+<div class="votacao-container" id="votacaoContainer">
     <header>
-       <div class="logo-container">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
+        <div class="logo-container">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo" onerror="this.style.display='none'">
         </div>
-        <h1>ELEIÇÕES - IPJARDIM</h1>
-        <a href="/admin" class="admin-link">Admin</a>
+        <h1>Sistema de Votação</h1>
+        <div class="admin-link" style="width: 50px;"></div> <!-- Espaço vazio para alinhar -->
     </header>
 
-  <main>
-    <p id="contador">Você pode escolher até 6 candidatos (0/6)</p>
+    <main>
+        <h2 id="titulo-turno">Votação: {{ turno_atual }}</h2>
+        <p id="contador">Selecione até 6 candidatos. (Selecionados: <span id="numSelecionados">0</span>)</p>
+        
+        <!-- Grelha de Candidatos -->
+        <div class="grid" id="gridCandidatos">
+            
+            <!-- Os candidatos são renderizados pelo Flask -->
+            {% for candidato in candidatos %}
+            <div class="card {% if candidato.nome.lower() == 'voto nulo' %}card-nulo{% endif %}" 
+                 data-nome="{{ candidato.nome }}" 
+                 tabindex="0"> <!-- tabindex para acessibilidade -->
+                
+                {% if candidato.foto %}
+                    <!-- 
+                    *** ESTA É A LINHA CORRIGIDA ***
+                    O 'onerror' agora tem 'logo.png' entre aspas.
+                    -->
+                    <img src="{{ url_for('static', filename=candidato.foto) }}" 
+                         alt="Foto de {{ candidato.nome }}" 
+                         class="foto"
+                         onerror="this.src=`{{ url_for('static', filename='logo.png') }}`">
+                {% else %}
+                    <!-- Avatar Padrão para 'Voto Nulo' ou quem não tem foto -->
+                    <div class="foto-padrao">
+                        <span>{{ candidato.nome }}</span>
+                    </div>
+                {% endif %}
+                
+                <div class="nome-candidato">{{ candidato.nome }}</div>
+            </div>
+            {% endfor %}
+            
+        </div>
 
-    <div class="grid">
-  {% for candidato in candidatos %}
-  {% if candidato.nome != "Voto Nulo" %}
-  <div class="card" onclick="toggleVoto('{{ candidato.nome }}', this)">
-    <img class="foto" src="{{ url_for('static', filename=candidato.foto) }}" alt="{{ candidato.nome }}">
-  </div>
-  {% endif %}
-  {% endfor %}
-  
-  <!-- Voto Nulo separado -->
-  <div class="card-nulo" onclick="toggleVoto('NULO', this)">
-    <div>VOTO NULO</div>
-  </div>
+        <button id="confirmar">Confirmar Voto(s)</button>
+    </main>
 </div>
 
-    <button id="confirmar" onclick="abrirModal()">CONFIRMAR VOTO</button>
-    <div id="toast" class="toast"></div>
-  </main>
-
-  <!-- Modal de confirmação -->
-  <div id="modalOverlay" class="modal-overlay">
+<!-- Modal de Confirmação (igual ao do admin.html) -->
+<div class="modal-overlay" id="modalConfirmacao">
     <div class="modal">
-      <h2>Confirmar Voto</h2>
-      <p id="modalTexto">Deseja confirmar seus votos?</p>
-      <button class="btn-confirmar" onclick="confirmarVotos()">Confirmar</button>
-      <button class="btn-cancelar" onclick="fecharModal()">Cancelar</button>
+        <h2>Confirmar Votos</h2>
+        <p id="listaVotosConfirmar"></p>
+        <p>Tem a certeza que deseja submeter estes votos?</p>
+        <button class="btn-confirmar" id="btnConfirmarFinal">Sim, Confirmar</button>
+        <button class="btn-cancelar" id="btnCancelarFinal">Cancelar</button>
     </div>
-  </div>
+</div>
 
-  <audio id="somConfirmar" src="{{ url_for('static', filename='voto.mp3') }}"></audio>
+<!-- Toast (igual ao do admin.html) -->
+<div class="toast" id="toast"></div>
+
 
 <script>
-let votosSelecionados = [];
+document.addEventListener("DOMContentLoaded", function() {
+    // Não há mais lógica de CPF aqui
 
-// Se o servidor marcar que já tem sessão, não exibir overlay.
-// Mas como estamos servindo a página somente depois de sessão, o overlay atuará quando necessário.
-// A rota /cpf redireciona pra mim se não houver sessão; aqui o overlay dá fallback se index for usado diretamente.
+    const gridCandidatos = document.getElementById('gridCandidatos');
+    const btnConfirmar = document.getElementById('confirmar');
+    const spanSelecionados = document.getElementById('numSelecionados');
+    
+    const modalConfirmacao = document.getElementById('modalConfirmacao');
+    const listaVotosConfirmar = document.getElementById('listaVotosConfirmar');
+    const btnConfirmarFinal = document.getElementById('btnConfirmarFinal');
+    const btnCancelarFinal = document.getElementById('btnCancelarFinal');
 
-function toggleVoto(nome, elemento) {
-  const nuloCard = document.querySelector('.card-nulo');
-  const isNulo = nome === 'NULO';
+    let selecionados = [];
+    const MAX_VOTOS = 6;
 
-  // Se clicou em "Voto Nulo"
-  if (isNulo) {
-    // Desmarca todos os outros candidatos
-    document.querySelectorAll('.card').forEach(c => c.classList.remove('selecionado'));
-    votosSelecionados = ['NULO'];
-    elemento.classList.add('selecionado');
-    if (nuloCard) nuloCard.classList.add('selecionado');
-  } else {
-    // Se "Voto Nulo" estava selecionado, remove
-    if (votosSelecionados.includes('NULO')) {
-      votosSelecionados = [];
-      if (nuloCard) nuloCard.classList.remove('selecionado');
-    }
+    // --- LÓGICA DE VOTAÇÃO ---
 
-    const idx = votosSelecionados.indexOf(nome);
-    if (idx === -1) {
-      if (votosSelecionados.length >= 6) {
-        alert('Você só pode votar em até 6 candidatos!');
-        return;
-      }
-      votosSelecionados.push(nome);
-      elemento.classList.add('selecionado');
-    } else {
-      votosSelecionados.splice(idx, 1);
-      elemento.classList.remove('selecionado');
-    }
-  }
-
-  document.getElementById('contador').innerText =
-    votosSelecionados.includes('NULO')
-      ? 'Você selecionou voto NULO.'
-      : `Você pode escolher até 6 candidatos (${votosSelecionados.length}/6)`;
-}
-
-// === MODAL ===
-function abrirModal() {
-  if (votosSelecionados.length === 0) {
-    mostrarAlerta('Selecione ao menos um candidato ou o voto NULO.', 'erro');
-    return;
-  }
-  const modalTexto = document.getElementById('modalTexto');
-  modalTexto.innerText = `Confirmar votos em: ${votosSelecionados.join(', ')}?`;
-  document.getElementById('modalOverlay').style.display = 'flex';
-}
-
-function fecharModal() {
-  document.getElementById('modalOverlay').style.display = 'none';
-}
-
-// === CONFIRMAR VOTO ===
-async function confirmarVotos() {
-  fecharModal();
-  const resp = await fetch('/votar', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ votos: votosSelecionados })
-  });
-
-  const dados = await resp.json();
-
-  if (resp.ok) {
-    mostrarAlerta(dados.mensagem, 'sucesso');
-    const som = document.getElementById("somConfirmar");
-    som.currentTime = 0;
-    som.play();
-
-    // Espera o áudio terminar antes de resetar
-    som.onended = () => {
-      votosSelecionados = [];
-      document.querySelectorAll('.card').forEach(c => c.classList.remove('selecionado'));
-      document.getElementById('contador').innerText = 'Você pode escolher até 6 candidatos (0/6)';
-      // Após o áudio, volta pra tela de CPF
-      window.location.href = "/cpf";
-    };
-  } else {
-    mostrarAlerta('Erro ao enviar votos.', 'erro');
-
-    // se for erro de sessão, redireciona para a tela de CPF
-    if (resp.status === 403) {
-      setTimeout(() => { window.location.href = '/cpf'; }, 1200);
-    }
-  }
-}
-
-function tocarSomConfirmacao() {
-  const som = document.getElementById("somConfirmar");
-  som.currentTime = 0;
-  som.play();
-}
-
-// === TOAST BONITO ===
-function mostrarAlerta(mensagem, tipo = "info") {
-  const toast = document.getElementById("toast");
-  toast.textContent = mensagem;
-  toast.className = `toast mostrar ${tipo}`;
-  setTimeout(() => {
-    toast.className = "toast";
-  }, 3000);
-}
-
-
-// ================= CPF overlay logic =================
-async function enviarCPF() {
-  const cpf = document.getElementById('cpfInput').value.trim();
-  const msgEl = document.getElementById('cpfMsg');
-  msgEl.textContent = '';
-
-  if (!cpf) {
-    msgEl.textContent = 'Digite um CPF.';
-    return;
-  }
-
-  // Chama backend pra verificar
-  try {
-    const resp = await fetch('/verificar_cpf', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ cpf })
+    // Event listener para cliques nos cards
+    gridCandidatos.addEventListener('click', (e) => {
+        const card = e.target.closest('.card');
+        if (card) {
+            selecionarCard(card);
+        }
     });
-    const data = await resp.json();
-    if (resp.ok) {
-      // sucesso: fecha overlay e permite votar
-      const overlay = document.getElementById('cpfOverlay');
-      overlay.style.display = 'none';
-      mostrarAlerta('CPF aceito. Você já pode votar.', 'sucesso');
-    } else {
-      msgEl.textContent = data.erro || 'CPF inválido ou já votou.';
+
+    // Event listener para navegação por teclado (Acessibilidade)
+    gridCandidatos.addEventListener('keydown', (e) => {
+        const card = e.target.closest('.card');
+        if (card && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault(); // Impede a página de rolar com a barra de espaço
+            selecionarCard(card);
+        }
+    });
+
+    function selecionarCard(card) {
+        const nome = card.dataset.nome;
+        const index = selecionados.indexOf(nome);
+
+        if (index > -1) {
+            // Já estava selecionado -> Desselecionar
+            selecionados.splice(index, 1);
+            card.classList.remove('selecionado');
+        } else {
+            // Não estava selecionado -> Tentar selecionar
+            if (selecionados.length < MAX_VOTOS) {
+                selecionados.push(nome);
+                card.classList.add('selecionado');
+            } else {
+                // Limite atingido
+                mostrarToast(`Só pode selecionar até ${MAX_VOTOS} candidatos.`, 'erro');
+            }
+        }
+        
+        // Atualiza a contagem
+        spanSelecionados.textContent = selecionados.length;
     }
-  } catch (err) {
-    msgEl.textContent = 'Erro ao verificar CPF.';
-  }
-}
 
-// Se a página for carregada diretamente (sem passar por /cpf), o overlay aparece.
-// Caso contrário, o servidor redirecione para /cpf e essa página não é exibida.
+    // Botão Confirmar (abre o modal)
+    btnConfirmar.addEventListener('click', () => {
+        if (selecionados.length === 0) {
+            mostrarToast("Deve selecionar pelo menos 1 candidato.", 'erro');
+            return;
+        }
+        
+        // Preenche o modal com os votos
+        listaVotosConfirmar.innerHTML = "<strong>Votos selecionados:</strong><br>" + selecionados.join(', ');
+        modalConfirmacao.style.display = 'flex';
+    });
 
+    // Botões do Modal
+    btnCancelarFinal.addEventListener('click', () => {
+        modalConfirmacao.style.display = 'none';
+    });
+
+    btnConfirmarFinal.addEventListener('click', async () => {
+        btnConfirmarFinal.disabled = true;
+        btnConfirmarFinal.textContent = "A guardar...";
+
+        try {
+            const resposta = await fetch('/votar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ votos: selecionados })
+            });
+
+            const dados = await resposta.json();
+
+            if (resposta.ok) {
+                // Sucesso!
+                modalConfirmacao.style.display = 'none';
+                document.getElementById('votacaoContainer').innerHTML = `
+                    <h1 style='color:#49886e; margin-top: 40px;'>Obrigado!</h1>
+                    <p style='font-size: 1.2em;'>${dados.mensagem}</p>
+                    <p>Será redirecionado para a tela de login em 5 segundos.</p>
+                `;
+                // Redireciona de volta para a tela de CPF
+                setTimeout(() => {
+                    window.location.href = '/cpf'; 
+                }, 5000);
+
+            } else {
+                // Erro (Ex: sessão expirou, votou entretanto)
+                mostrarToast(dados.mensagem || "Erro ao submeter.", 'erro');
+                btnConfirmarFinal.disabled = false;
+                btnConfirmarFinal.textContent = "Sim, Confirmar";
+                modalConfirmacao.style.display = 'none';
+            }
+
+        } catch (err) {
+            mostrarToast("Não foi possível ligar ao servidor.", 'erro');
+            console.error(err);
+            btnConfirmarFinal.disabled = false;
+            btnConfirmarFinal.textContent = "Sim, Confirmar";
+            modalConfirmacao.style.display = 'none';
+        }
+    });
+
+    // Função de Toast (para mostrar mensagens)
+    function mostrarToast(mensagem, tipo = 'info') {
+        const toast = document.getElementById('toast');
+        toast.textContent = mensagem;
+        toast.className = 'toast mostrar ' + tipo; // Adiciona tipo (sucesso, erro, info)
+        setTimeout(() => {
+            toast.className = toast.className.replace('mostrar', '');
+        }, 3000);
+    }
+});
 </script>
-
-<style>
-/* estilos rápidos pro overlay cpf (você pode mover pro style.css se quiser) */
-.cpf-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(10,10,10,0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-.cpf-card {
-  background: white;
-  padding: 22px;
-  border-radius: 10px;
-  text-align: center;
-  width: 320px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.2);
-}
-.cpf-card input { width: 100%; padding: 10px; border-radius:6px; border:1px solid #ccc; }
-</style>
 
 </body>
 </html>
+

@@ -4,15 +4,16 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Admin - Eleições</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <!-- Assumindo que tem um style.css na pasta static -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
 <header>
-       <div class="logo-container">
+        <div class="logo-container">
+            <!-- Garanta que tem um logo.png na pasta static -->
             <a href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo"></a>
-            
         </div>
         <h1>Painel Administrativo - Sistema de Votação</h1>
         <a href="/logout" class="admin-link">Sair</a>
@@ -24,6 +25,7 @@
     <section>
         <h2>Resumo Geral</h2>
         <div class="stats">
+            <!-- Estes valores são preenchidos pelo Javascript (função carregarDados) -->
             <div class="stat">Presentes: <span id="presentes">0</span></div>
             <div class="stat">Já votaram: <span id="votaram">0</span></div>
             <div class="stat">Faltam votar: <span id="faltam">0</span></div>
@@ -32,18 +34,31 @@
     </section>
 
     <!-- === RESULTADOS === -->
-    <section>
-        <h2>Resultados da Votação</h2>
-        <table id="tabela">
-            <thead>
-                <tr>
-                    <th>Candidato</th>
-                    <th>Votos</th>
-                    <th>% (em relação aos presentes)</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+     <section>
+<h2>Resultados da Votação</h2>
+<table id="tabela">
+  <thead>
+    <tr>
+      <th>Candidato</th>
+      <th>Votos</th>
+      <th>% (em relação aos presentes)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- 
+      O Python/Flask renderiza os dados iniciais aqui.
+      O Javascript (carregarDados) irá atualizar esta tabela dinamicamente.
+    -->
+    {% for nome, total in resultados.items() %}
+      <tr>
+        <td>{{ nome }}</td>
+        <td>{{ total }}</td>
+        <td>{{ porcentagens[nome] }}%</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
         <div id="chart-container">
             <canvas id="grafico"></canvas>
         </div>
@@ -52,8 +67,9 @@
     <!-- === CONFIGURAÇÕES === -->
     <section class="config-container">
         <h2>Configurações</h2>
-        <button class="config-toggle" onclick="toggleConfig()">
-            <img src="https://cdn-icons-png.flaticon.com/512/3524/3524659.png" id="config-btn" onclick="toggleConfig(event)" alt="Configurações">
+        <button class="config-toggle" onclick="toggleConfig(event)">
+            <!-- Ícone de engrenagem -->
+            <img src="https://cdn-icons-png.flaticon.com/512/3524/3524659.png" id="config-btn" alt="Configurações">
         </button>
 
         <div class="config-content" id="config-content">
@@ -64,110 +80,116 @@
             <input type="text" id="turnos_text">
 
             <div class="turno-section">
-  <label for="turno_atual_select">Turno Atual</label>
-  <select id="turno_atual_select"></select>
-  <small class="hint">Ao mudar o turno, os dados atuais são salvos automaticamente.</small>
-</div>
+              <label for="turno_atual_select">Turno Atual</label>
+              <select id="turno_atual_select"></select>
+              <small class="hint">Ao mudar o turno, os dados são atualizados automaticamente.</small>
+            </div>
 
-<div class="turno-extra" id="novo-turno-container" style="display:none;">
-  <label for="novo_turno_candidatos">Candidatos do 2º Turno</label>
-  <textarea id="novo_turno_candidatos" rows="2" placeholder="Ex: Candidato A, Candidato B"></textarea>
-  <small class="hint">Esses candidatos substituem os do 1º turno.</small>
-</div>
+            <div class="turno-extra" id="novo-turno-container" style="display:none;">
+              <label for="novo_turno_candidatos">Candidatos do 2º Turno (ou outro)</label>
+              <textarea id="novo_turno_candidatos" rows="2" placeholder="Ex: Candidato A, Candidato B"></textarea>
+              <small class="hint">Define a lista específica para este turno.</small>
+            </div>
 
-<div class="presenca-section">
-  <label for="presentes_input">👥 Pessoas Presentes</label>
-  <input type="number" id="presentes_input" min="0">
-</div>
+            <div class="botoes-config">
+              <button id="salvarConfig" onclick="salvarConfig()">💾 Salvar Configurações</button>
+              <button class="danger" onclick="resetarVotos()">🔄 Zerar Votos</button>
+            </div>
+            
+            <div class="admin-eleitores">
+              <h4>Controle de Eleitores</h4>
 
-<div class="botoes-config">
-  <button id="salvarConfig">💾 Salvar Configurações</button>
-  <button class="danger" onclick="resetarVotos()">🔄 Zerar Votos</button>
-</div>
-    <div class="admin-eleitores">
-  <h4>Controle de Eleitores</h4>
+              <div class="eleitor-form">
+                <input type="text" id="cpfNovo" placeholder="Digite o CPF (apenas números)">
+                <button id="addBtn">Adicionar</button>
+              </div>
+              <button onclick="carregarEleitores()">🔄 Atualizar Lista</button>
+              <div id="msgAdd"></div>
 
-  <div class="eleitor-form">
-    <input type="text" id="cpfNovo" placeholder="Digite o CPF (apenas números)">
-    <button id="addBtn">Adicionar</button>
-  </div>
-<button onclick="carregarEleitores()">🔄 Atualizar Lista</button>
-  <div id="msgAdd"></div>
-
-  <table id="tabelaEleitores">
-    <thead>
-      <tr>
-        <th>CPF</th>
-      </tr>
-    </thead>
-    <tbody id="listaEleitores">
-    </tbody>
-  </table>
-</div>
-</div>
-
+              <table id="tabelaEleitores">
+                <thead>
+                  <tr>
+                    <th>CPF (e status no turno atual)</th>
+                  </tr>
+                </thead>
+                <tbody id="listaEleitores">
+                  <!-- Eleitores são carregados via Javascript -->
+                </tbody>
+              </table>
+              <button class="danger" id="zerarTodosEleitoresBtn" onclick="zerarTodos()">Apagar Todos os Eleitores</button>
+            </div>
+        </div>
     </section>
 
 </main>
 
-<footer>© 2025 Sistema de Votação - Desenvolvido por Mizael</footer>
+<footer>© 2025 Sistema de Votação</footer>
 
 <script>
 let grafico = null;
-let dadosAnteriores = null;
+let dadosAnteriores = null; // Para comparar se houve mudança
 
+/**
+ * Função principal: Busca os dados do /admin/data e atualiza o painel
+ */
 async function carregarDados(auto = false) {
-  const resp = await fetch('/admin/data');
-  const dados = await resp.json();
+  try {
+    const resp = await fetch('/admin/data');
+    if (!resp.ok) {
+        console.error("Falha ao carregar dados do admin. Status:", resp.status);
+        return;
+    }
+    const dados = await resp.json();
 
-  // Se houver novos votos, anima!
-  if (auto && dadosAnteriores) {
-    const mudanca = Object.keys(dados.votos).some(
-      c => dados.votos[c] !== dadosAnteriores.votos[c]
-    );
-    if (mudanca) animarAtualizacao();
+    // Compara se dados mudaram (para futuras animações)
+    if (auto && dadosAnteriores) {
+        const mudanca = Object.keys(dados.votos).some(
+        c => !dadosAnteriores.votos[c] || dados.votos[c] !== dadosAnteriores.votos[c]
+        );
+    }
+
+    dadosAnteriores = dados;
+
+    // Atualiza o resumo
+    document.getElementById('presentes').textContent = dados.presentes;
+    document.getElementById('votaram').textContent = dados.votaram;
+    document.getElementById('faltam').textContent = dados.faltam;
+    document.getElementById('turno_atual').textContent = dados.turno_atual;
+
+    // Atualiza a tabela de resultados
+    const tbody = document.querySelector('#tabela tbody');
+    tbody.innerHTML = '';
+    
+    // Usa dados.candidatos (que vem do servidor) como a fonte da verdade
+    dados.candidatos.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+        <td>${c}</td>
+        <td>${dados.votos[c] || 0}</td>
+        <td>${dados.percent[c] || 0}%</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    atualizarGrafico(dados);
+    
+    // Só preenche o formulário se o painel de config estiver aberto
+    if (painelAberto) {
+        preencherFormulario(dados);
+    }
+  } catch (err) {
+      console.error("Erro ao carregar dados:", err);
   }
-
-  dadosAnteriores = dados;
-
-  document.getElementById('presentes').textContent = dados.presentes;
-  document.getElementById('votaram').textContent = dados.votaram;
-  document.getElementById('faltam').textContent = dados.faltam;
-  document.getElementById('turno_atual').textContent = dados.turno_atual;
-
-  const tbody = document.querySelector('#tabela tbody');
-  tbody.innerHTML = '';
-  dados.candidatos.forEach(c => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${c}</td>
-      <td>${dados.votos[c] || 0}</td>
-      <td>${dados.percent[c] || 0}%</td>
-    `;
-    tbody.appendChild(tr);
-  });
-
-  atualizarGrafico(dados);
 }
 
-function animarAtualizacao() {
-  const tabela = document.querySelector('#tabela');
-  tabela.classList.add('piscar');
-  setTimeout(() => tabela.classList.remove('piscar'), 700);
-
-  setTimeout(() => aviso.remove(), 1500);
-}
-
-// Recarrega a cada 2 segundos automaticamente
-setInterval(() => carregarDados(true), 2000);
-
-
+/**
+ * Atualiza o gráfico Chart.js
+ */
 function atualizarGrafico(dados) {
     const ctx = document.getElementById('grafico').getContext('2d');
     const labels = dados.candidatos;
     const valores = labels.map(c => dados.percent[c] || 0);
 
-    // define cores dinamicamente
     const cores = valores.map(v => v >= 50 ? '#2ecc71' : '#49886e');
 
     if (grafico) grafico.destroy();
@@ -189,11 +211,7 @@ function atualizarGrafico(dados) {
                 y: {
                     beginAtZero: true,
                     max: 100,
-                    ticks: {
-                        callback: function (value) {
-                            return value + '%';
-                        }
-                    }
+                    ticks: { callback: (value) => value + '%' }
                 }
             },
             plugins: {
@@ -208,13 +226,22 @@ function atualizarGrafico(dados) {
     });
 }
 
+/**
+ * Preenche os campos do formulário de configuração com dados atuais
+ */
 function preencherFormulario(dados) {
-    document.getElementById('candidatos_text').value = (dados.candidatos_por_turno && dados.candidatos_por_turno[dados.turnos[0]]) ? dados.candidatos_por_turno[dados.turnos[0]].join(', ') : dados.candidatos.join(', ');
+    // Tenta preencher o 1º turno primeiro
+    if (dados.candidatos_por_turno && dados.turnos && dados.turnos.length > 0) {
+        const primeiroTurno = dados.turnos[0];
+        document.getElementById('candidatos_text').value = (dados.candidatos_por_turno[primeiroTurno] || []).join(', ');
+    } else {
+         document.getElementById('candidatos_text').value = dados.candidatos.join(', ');
+    }
+    
     document.getElementById('turnos_text').value = dados.turnos.join(', ');
-    document.getElementById('presentes_input').value = dados.presentes;
-
+    
     const sel = document.getElementById('turno_atual_select');
-    sel.innerHTML = '';
+    sel.innerHTML = ''; // Limpa opções antigas
     dados.turnos.forEach(t => {
         const opt = document.createElement('option');
         opt.value = t;
@@ -223,59 +250,85 @@ function preencherFormulario(dados) {
         sel.appendChild(opt);
     });
 
+    // Preenche a área de candidatos do turno específico
     const turnoAtual = dados.turno_atual;
     const perTurnoArea = document.getElementById('novo_turno_candidatos');
     if (dados.candidatos_por_turno && dados.candidatos_por_turno[turnoAtual]) {
         perTurnoArea.value = dados.candidatos_por_turno[turnoAtual].join(', ');
     } else {
-        perTurnoArea.value = '';
+        perTurnoArea.value = ''; // Limpa se não houver dados
     }
 
     atualizarVisibilidadeCampoTurno(sel.value);
 }
 
+/**
+ * Salva as configurações (Turnos e Candidatos)
+ */
 async function salvarConfig() {
     const turnoSelecionado = document.getElementById('turno_atual_select').value;
+    const primeiroTurno = document.getElementById('turno_atual_select').options[0].value;
 
     const body = {
         turnos_text: document.getElementById('turnos_text').value,
         turno_atual: turnoSelecionado,
-        presentes: document.getElementById('presentes_input').value
+        // Sempre salva a lista do primeiro <textarea> na config do primeiro turno
+        candidatos_text: document.getElementById('candidatos_text').value,
+        turno_for_candidates: primeiroTurno 
     };
 
-    const primeiroTurno = document.getElementById('turno_atual_select').options[0].value;
-    if (turnoSelecionado === primeiroTurno) {
-        body.candidatos_text = document.getElementById('candidatos_text').value;
-    } else {
-        const candidatosDoTurno = document.getElementById('novo_turno_candidatos').value.trim();
-        if (candidatosDoTurno) {
-            body.candidatos_text = candidatosDoTurno;
-            body.turno_for_candidates = turnoSelecionado;
-        }
-    }
-
+    // Envia a primeira atualização (turnos, turno atual, candidatos 1º turno)
     const resp = await fetch('/admin/update_config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
     });
-    const data = await resp.json();
-    alert(data.mensagem);
-    carregarDados();
+    
+    let data = await resp.json();
+
+    // Se um turno diferente do 1º estiver selecionado E tiver texto,
+    // envia uma SEGUNDA requisição para salvar os candidatos daquele turno
+    if (turnoSelecionado !== primeiroTurno) {
+        const candidatosDoTurno = document.getElementById('novo_turno_candidatos').value.trim();
+        if (candidatosDoTurno) {
+            const respTurnoExtra = await fetch('/admin/update_config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    candidatos_text: candidatosDoTurno,
+                    turno_for_candidates: turnoSelecionado
+                })
+            });
+            data = await respTurnoExtra.json(); // Pega a última resposta
+        }
+    }
+
+    alert(data.mensagem || data.erro || "Configurações salvas.");
+    carregarDados(); // Recarrega os dados para refletir as mudanças
 }
 
+/**
+ * Reseta todos os votos no banco de dados
+ */
 async function resetarVotos() {
-    if (!confirm('Tem certeza que deseja zerar TODOS os votos de todos os turnos?')) return;
-    const resp = await fetch('/admin/update_config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reset_votos: true })
-    });
-    const data = await resp.json();
-    alert(data.mensagem);
-    carregarDados();
+    if (!confirm('Tem certeza que deseja zerar TODOS os votos de todos os turnos? Esta ação não pode ser desfeita.')) return;
+    try {
+      const resp = await fetch('/admin/update_config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reset_votos: true })
+      });
+      const data = await resp.json();
+      alert(data.mensagem || data.erro || "Votos resetados.");
+      carregarDados(); // Recarrega os dados
+    } catch (e) {
+        alert("Erro ao resetar votos.");
+    }
 }
 
+/**
+ * Mostra ou esconde o campo de candidatos do 2º/3º turno
+ */
 function atualizarVisibilidadeCampoTurno(turnoSelecionado) {
     const primeiroTurno = document.getElementById('turno_atual_select').options[0].value;
     const container = document.getElementById('novo-turno-container');
@@ -286,98 +339,119 @@ function atualizarVisibilidadeCampoTurno(turnoSelecionado) {
     }
 }
 
+// === Event Listeners ===
+
+// Atualiza o turno atual no backend quando o select é alterado
 document.getElementById('turno_atual_select').addEventListener('change', async (e) => {
     const turno = e.target.value;
-    await fetch('/admin/update_config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ turno_atual: turno })
-    });
-    atualizarVisibilidadeCampoTurno(turno);
-    carregarDados();
-    mostrarAviso(`🔁 Turno alterado para: ${turno}`);
+    try {
+        await fetch('/admin/update_config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ turno_atual: turno })
+        });
+        atualizarVisibilidadeCampoTurno(turno);
+        carregarDados(); // Recarrega os dados do novo turno
+        mostrarAviso(`🔁 Turno alterado para: ${turno}`);
+    } catch (e) {
+        alert("Erro ao trocar de turno.");
+    }
 });
 
+// Fecha o painel de config se clicar fora
 document.addEventListener("click", (event) => {
   const configContent = document.getElementById("config-content");
   const configButton = document.getElementById("config-btn");
 
   if (!configContent.contains(event.target) && !configButton.contains(event.target)) {
     configContent.classList.remove("active");
+    painelAberto = false;
   }
 });
 
 let painelAberto = false;
 
+// Abre/Fecha o painel de config
 function toggleConfig(event) {
-  event.stopPropagation();
+  if (event) event.stopPropagation();
   const configContent = document.getElementById("config-content");
   configContent.classList.toggle("active");
   painelAberto = configContent.classList.contains("active");
+  
+  // Se acabou de abrir o painel, carrega os dados e preenche o formulário
+  if (painelAberto) {
+      carregarDados().then(() => {
+          if (dadosAnteriores) {
+              preencherFormulario(dadosAnteriores);
+              carregarEleitores(); // Carrega eleitores ao abrir também
+          }
+      });
+  }
 }
 
+// Atualização automática a cada 5 segundos (se o painel estiver fechado)
 setInterval(() => {
-  if (!painelAberto) {
-    carregarDados();
+  if (!painelConfigAberto) {
+    carregarDados(true); // 'true' para indicar que é auto-refresh
   }
 }, 5000);
 
+/**
+ * Mostra um aviso rápido no canto da tela
+ */
 function mostrarAviso(texto) {
   let aviso = document.createElement("div");
+  aviso.className = "aviso-toast"; // Usa uma classe para estilização
   aviso.textContent = texto;
-  aviso.style.position = "fixed";
-  aviso.style.bottom = "20px";
-  aviso.style.right = "20px";
-  aviso.style.background = "#49886e";
-  aviso.style.color = "white";
-  aviso.style.padding = "10px 20px";
-  aviso.style.borderRadius = "8px";
-  aviso.style.boxShadow = "0 2px 6px rgba(0,0,0,0.3)";
-  aviso.style.fontSize = "15px";
-  aviso.style.zIndex = "9999";
-  aviso.style.opacity = "0";
-  aviso.style.transition = "opacity 0.5s ease";
-
   document.body.appendChild(aviso);
+  
   setTimeout(() => (aviso.style.opacity = "1"), 50);
   setTimeout(() => {
     aviso.style.opacity = "0";
     setTimeout(() => aviso.remove(), 500);
   }, 2500);
 }
+
+// === Lógica dos Eleitores ===
+
 const listaDiv = document.getElementById("listaEleitores");
 const msgAdd = document.getElementById("msgAdd");
 
 async function carregarEleitores() {
-    listaDiv.innerHTML = "<p>Carregando...</p>";
+    listaDiv.innerHTML = "<tr><td>Carregando...</td></tr>";
     try {
         const resp = await fetch("/admin/eleitores");
         const eleitores = await resp.json();
 
         if (!Object.keys(eleitores).length) {
-            listaDiv.innerHTML = "<p class='text-muted'>Nenhum eleitor cadastrado.</p>";
+            listaDiv.innerHTML = "<tr><td>Nenhum eleitor cadastrado.</td></tr>";
             return;
         }
 
-        listaDiv.innerHTML = "";
-        Object.entries(eleitores).forEach(([cpf, dados]) => {
-        // Descobre turno atual exibido no painel
+        const tbody = document.getElementById("listaEleitores");
+        tbody.innerHTML = "";
+        
+        // Pega o turno atual do painel (que é atualizado pelo carregarDados)
         const turnoAtual = document.getElementById('turno_atual').textContent.trim();
-        const votouNoTurno = dados.votou_turnos?.[turnoAtual] === true;
 
-        const div = document.createElement("div");
-        div.className = "cpf-item";
-        div.innerHTML = `
-            <span><strong>${cpf}</strong> - ${votouNoTurno ? "✅ Votou" : "❌ Não votou"}</span>
-            <div>
-                <button class="btn btn-sm btn-warning me-1" onclick="editarEleitor('${cpf}')">Editar</button>
-                <button class="btn btn-sm btn-danger" onclick="removerEleitor('${cpf}')">Excluir</button>
-            </div>
+        Object.entries(eleitores).forEach(([cpf, dados]) => {
+        
+        const votouNoTurno = dados.votou_turnos?.[turnoAtual] === true;
+        
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>
+                <span><strong>${cpf}</strong> - ${votouNoTurno ? "✅ Votou" : "❌ Não votou"}</span>
+                <div>
+                    <button class="btn-edit" onclick="editarEleitor('${cpf}')">Editar</button>
+                    <button class="btn-delete" onclick="removerEleitor('${cpf}')">Excluir</button>
+                </div>
+            </td>
         `;
-        listaDiv.appendChild(div);
+        tbody.appendChild(tr);
     });
     } catch (err) {
-        listaDiv.innerHTML = "<p class='text-danger'>Erro ao carregar eleitores.</p>";
+        listaDiv.innerHTML = "<tr><td><span class='text-danger'>Erro ao carregar eleitores.</span></td></tr>";
     }
 }
 
@@ -399,7 +473,8 @@ async function adicionarEleitor() {
         if (resp.ok) {
             msgAdd.textContent = data.mensagem;
             document.getElementById("cpfNovo").value = "";
-            carregarEleitores();
+            carregarEleitores(); // Atualiza a lista de eleitores
+            carregarDados();    // Atualiza a contagem de presentes
         } else {
             msgAdd.textContent = data.erro || "Erro ao adicionar.";
         }
@@ -411,170 +486,147 @@ async function adicionarEleitor() {
 async function editarEleitor(cpfAntigo) {
     const novo = prompt("Digite o novo CPF:", cpfAntigo);
     if (!novo || !/^\d+$/.test(novo)) return alert("CPF inválido.");
+    if (novo === cpfAntigo) return;
 
-    const resp = await fetch("/admin/eleitores", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cpf_antigo: cpfAntigo, cpf_novo: novo })
-    });
-    const data = await resp.json();
-    alert(data.mensagem || data.erro);
-    carregarEleitores();
+    try {
+      const resp = await fetch("/admin/eleitores", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cpf_antigo: cpfAntigo, cpf_novo: novo })
+      });
+      const data = await resp.json();
+      alert(data.mensagem || data.erro || "Operação concluída.");
+      carregarEleitores();
+    } catch(e) {
+      alert("Erro ao editar eleitor.");
+    }
 }
 
 async function removerEleitor(cpf) {
     if (!confirm(`Remover eleitor ${cpf}?`)) return;
-    const resp = await fetch("/admin/eleitores", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cpf })
-    });
-    const data = await resp.json();
-    alert(data.mensagem || data.erro);
-    carregarEleitores();
+    try {
+      const resp = await fetch("/admin/eleitores", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cpf })
+      });
+      const data = await resp.json();
+      alert(data.mensagem || data.erro || "Eleitor removido.");
+      carregarEleitores(); // Atualiza a lista
+      carregarDados();    // Atualiza a contagem de presentes
+    } catch(e) {
+        alert("Erro ao remover eleitor.");
+    }
 }
 
 async function zerarTodos() {
-    if (!confirm("Tem certeza que deseja apagar TODOS os eleitores?")) return;
-    const resp = await fetch("/admin/eleitores/all", { method: "DELETE" });
-    const data = await resp.json();
-    alert(data.mensagem);
-    carregarEleitores();
+    if (!confirm("Tem certeza que deseja apagar TODOS os eleitores? Esta ação também reseta os votos.")) return;
+    try {
+      const resp = await fetch("/admin/eleitores/all", { method: "DELETE" });
+      const data = await resp.json();
+      alert(data.mensagem);
+      carregarEleitores();
+      carregarDados(); // Atualiza 'presentes' para 0
+      // Também reseta os votos para garantir consistência
+      resetarVotos();
+    } catch(e) {
+        alert("Erro ao apagar todos os eleitores.");
+    }
 }
 
 document.getElementById("addBtn").addEventListener("click", adicionarEleitor);
-document.getElementById("zerarBtn").addEventListener("click", zerarTodos);
-document.getElementById("atualizarBtn").addEventListener("click", carregarEleitores);
+document.getElementById("zerarTodosEleitoresBtn").addEventListener("click", zerarTodos);
 
-// carrega lista ao abrir
-carregarEleitores();
+// --- Inicialização ---
+carregarDados(); // Carga inicial dos dados do painel
 
-document.getElementById("salvarConfig").addEventListener("click", salvarConfig);
-// inicialização
-carregarDados();
 </script>
 <style>
-.piscar {
-  animation: brilho 0.7s ease;
-}
-@keyframes brilho {
-  0% { box-shadow: 0 0 0px rgba(255,255,0,0); }
-  50% { box-shadow: 0 0 15px rgba(255,255,0,0.6); }
-  100% { box-shadow: 0 0 0px rgba(255,255,0,0); }
-}
-@keyframes aparecer {
-  0% { opacity: 0; transform: translateY(20px); }
-  30% { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-10px); }
-}
+/* Estilos básicos (pode mover para /static/style.css) */
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
+header { background-color: #fff; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+.logo-container .logo { max-height: 50px; }
+header h1 { font-size: 1.2rem; margin: 0; color: #2d5742; }
+.admin-link { text-decoration: none; background-color: #d9534f; color: white; padding: 8px 12px; border-radius: 6px; font-weight: 500; }
+main { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+section { background-color: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+h2 { color: #49886e; margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+.stats { display: flex; flex-wrap: wrap; gap: 20px; }
+.stat { background-color: #eef; padding: 15px; border-radius: 8px; font-size: 1.1rem; font-weight: 500; }
+.stat span { font-weight: bold; color: #2d5742; }
+#chart-container { max-height: 400px; margin-top: 20px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+th { background-color: #f9f9f9; }
+tr:nth-child(even) { background-color: #fdfdfd; }
 
+/* Configurações */
+.config-container { position: relative; }
+.config-toggle { position: absolute; top: 20px; right: 20px; background: none; border: none; cursor: pointer; padding: 5px; border-radius: 50%; }
+.config-toggle img { width: 24px; height: 24px; opacity: 0.6; transition: 0.3s; }
+.config-toggle:hover img { opacity: 1; transform: rotate(60deg); }
+.config-content { display: none; margin-top: 20px; border-top: 2px solid #eee; padding-top: 20px; }
+.config-content.active { display: block; }
+label { display: block; margin-top: 15px; margin-bottom: 5px; font-weight: 500; }
+input[type="text"], textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-sizing: border-box; /* Garante que padding não afete a largura */
+}
+.turno-section { margin-top: 15px; }
+.hint { font-size: 0.9rem; color: #777; }
+.turno-extra { margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 15px; }
+.botoes-config { display: flex; gap: 10px; margin-top: 20px; }
+button {
+    background-color: #49886e; color: white; border: none; padding: 12px 18px;
+    border-radius: 6px; font-size: 1rem; cursor: pointer; transition: 0.2s;
+}
+button:hover { background-color: #3a6b57; }
+button.danger { background-color: #d32f2f; }
+button.danger:hover { background-color: #b71c1c; }
+
+/* Eleitores */
 .admin-eleitores {
-  margin-top: 2rem;
-  background: #f7f7f7;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.1);
-  max-width: 800px;
-  margin-left: auto;
-  margin-right: auto;
+  margin-top: 2rem; background: #f7f7f7; padding: 1.5rem;
+  border-radius: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  max-width: 800px; margin-left: auto; margin-right: auto;
 }
-
-.admin-eleitores h4 {
-  text-align: center;
-  color: #2d5742;
-  margin-bottom: 1.2rem;
-}
-
+.admin-eleitores h4 { text-align: center; color: #2d5742; margin-bottom: 1.2rem; }
 .eleitor-form {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 1.5rem;
+  display: flex; justify-content: center; align-items: center;
+  gap: 10px; margin-bottom: 1.5rem;
+}
+.eleitor-form input { flex: 1; max-width: 300px; }
+.eleitor-form button { background-color: #1976d2; padding: 8px 14px; }
+.eleitor-form button:hover { background-color: #145ea8; }
+#tabelaEleitores { margin-top: 10px; }
+#tabelaEleitores th { background-color: #49886e; color: white; }
+#tabelaEleitores tr:nth-child(even) { background-color: #f0f0f0; }
+#tabelaEleitores td { display: flex; justify-content: space-between; align-items: center; }
+#tabelaEleitores td div { display: flex; gap: 5px; }
+#tabelaEleitores button { font-size: 0.8rem; padding: 4px 8px; }
+.btn-edit { background-color: #f0ad4e; } .btn-edit:hover { background-color: #ec971f; }
+.btn-delete { background-color: #d9534f; } .btn-delete:hover { background-color: #c9302c; }
+#msgAdd { text-align: center; color: #2e7d32; margin-bottom: 10px; font-weight: 500; }
+#zerarTodosEleitoresBtn { background-color: #d32f2f; margin-top: 15px; }
+#zerarTodosEleitoresBtn:hover { background-color: #b71c1c; }
+
+/* Toast/Aviso */
+.aviso-toast {
+  position: fixed; bottom: -100px; right: 20px;
+  background: #2d5742; color: white; padding: 12px 20px;
+  border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  font-size: 1rem; z-index: 9999;
+  opacity: 0; transition: all 0.5s ease;
+}
+.aviso-toast[style*="opacity: 1"] {
+    bottom: 20px;
+    opacity: 1;
 }
 
-.eleitor-form input {
-  flex: 1;
-  max-width: 300px;
-  padding: 8px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-}
-
-.eleitor-form button {
-  background-color: #1976d2;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 14px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: 0.2s;
-}
-
-.eleitor-form button:hover {
-  background-color: #145ea8;
-}
-
-#tabelaEleitores {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-}
-
-#tabelaEleitores th, #tabelaEleitores td {
-  border: 1px solid #ccc;
-  padding: 8px 10px;
-  text-align: center;
-}
-
-#tabelaEleitores th {
-  background-color: #49886e;
-  color: white;
-  font-weight: 600;
-}
-
-#tabelaEleitores tr:nth-child(even) {
-  background-color: #f0f0f0;
-}
-
-#tabelaEleitores tr:hover {
-  background-color: #e0e0e0;
-}
-
-.btn-excluir {
-  background-color: #d32f2f;
-  color: white;
-  border: none;
-  padding: 5px 10px;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.btn-excluir:hover {
-  background-color: #b71c1c;
-}
-
-.status {
-  font-weight: bold;
-}
-
-.status.votou {
-  color: #2e7d32;
-}
-
-.status.nao-votou {
-  color: #d32f2f;
-}
-
-#msgAdd {
-  text-align: center;
-  color: #2e7d32;
-  margin-bottom: 10px;
-}
-
-    </style>
-
-
+</style>
 </body>
 </html>
+

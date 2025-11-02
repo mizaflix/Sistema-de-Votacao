@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Login Eleitor</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <div class="logo-container">
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
+    </div>
+    <h1>ELEIÇÕES - IPJARDIM</h1>
+  </header>
+
+  <main>
+    <h2>Digite seu código para votar</h2>
+    <input type="text" id="codigo" placeholder="Ex: 001" maxlength="10">
+    <button onclick="entrar()">Entrar</button>
+    <div id="mensagem" class="toast"></div>
+  </main>
+
+<script>
+async function entrar() {
+  const codigo = document.getElementById('codigo').value.trim();
+  if (!codigo) return mostrarMensagem('Digite o código!');
+
+  const resp = await fetch('/verificar_codigo', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({codigo})
+  });
+  const dados = await resp.json();
+  if (dados.ok) {
+    sessionStorage.setItem('codigo', codigo);
+    window.location.href = '/votacao';
+  } else {
+    mostrarMensagem(dados.mensagem, 'erro');
+  }
+}
+
+function mostrarMensagem(msg, tipo='info') {
+  const toast = document.getElementById('mensagem');
+  toast.textContent = msg;
+  toast.className = `toast mostrar ${tipo}`;
+  setTimeout(() => toast.className = 'toast', 3000);
+}
+</script>
+</body>
+</html>
