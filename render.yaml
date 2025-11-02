@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: sistema-de-votacao
+    env: python
+    buildCommand: pip install --upgrade pip -r requirements.txt
+    startCommand: gunicorn app:app
