@@ -521,8 +521,6 @@ def admin_update_config():
         # --- Atualiza candidatos ---
         if 'candidatos_text' in dados:
             nomes_novos = [c.strip() for c in dados['candidatos_text'].split(',') if c.strip()]
-            if not any(n.lower() == "voto nulo" for n in nomes_novos):
-                nomes_novos.append("Voto Nulo")
             
             # Turno alvo para esta lista de candidatos
             turno_alvo = dados.get('turno_for_candidates') or config['turno_atual']

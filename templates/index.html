@@ -44,34 +44,54 @@
         <h2 id="titulo-turno">Votação: {{ turno_atual }}</h2>
         <p id="contador">Selecione até 4 candidatos. (Selecionados: <span id="numSelecionados">0</span>)</p>
         
-        <!-- Grelha de Candidatos -->
+        <!-- Grelha de Candidatos / Plebiscito -->
         <div class="grid" id="gridCandidatos">
             
-            <!-- Os candidatos são renderizados pelo Flask -->
-            {% for candidato in candidatos %}
-            <div class="card {% if candidato.nome.lower() == 'voto nulo' %}card-nulo{% endif %}" 
-                 data-nome="{{ candidato.nome }}" 
-                 tabindex="0"> <!-- tabindex para acessibilidade -->
-                
-                <!-- 
-                Verifica se 'candidato.foto' existe. Se não (como no Voto Nulo), 
-                mostra um 'div' padrão em vez de um 'img' quebrado.
-                -->
-                {% if candidato.foto %}
-                    <img src="{{ url_for('static', filename=candidato.foto) }}" 
-                         alt="Foto de {{ candidato.nome }}" 
-                         class="foto-candidato"
-                         onerror="this.onerror=null; this.src='{{ url_for('static', filename='logo.png') }}';"> <!-- Fallback caso a foto não carregue -->
-                {% else %}
-                    <!-- Avatar Padrão para 'Voto Nulo' ou quem não tem foto -->
-                    <div class="foto-padrao">
-                        <span>{{ candidato.nome }}</span>
+            {% if candidatos|length == 1 %}
+                <!-- === MODO CHAPA ÚNICA (SIM OU NÃO) === -->
+                {% set candidato = candidatos[0] %}
+                <div class="candidato-unico-card">
+                    {% if candidato.foto %}
+                        <img src="{{ url_for('static', filename=candidato.foto) }}" 
+                             alt="Foto de {{ candidato.nome }}" 
+                             class="foto-candidato-unico"
+                             onerror="this.onerror=null; this.src='{{ logo_fallback }}';">
+                    {% else %}
+                        <div class="foto-padrao-unica">
+                            <span>{{ candidato.nome }}</span>
+                        </div>
+                    {% endif %}
+                    
+                    <h2 class="nome-candidato-unico">{{ candidato.nome }}</h2>
+                    <p class="pergunta-plebiscito">Você aprova este candidato?</p>
+                    
+                    <div class="botoes-plebiscito">
+                        <button class="btn-sim" onclick="votarPlebiscito('{{ candidato.nome }}')">✅ SIM</button>
+                        <button class="btn-nao" onclick="votarPlebiscito('Não')">❌ NÃO</button>
                     </div>
-                {% endif %}
-                
-                <div class="nome-candidato">{{ candidato.nome }}</div>
-            </div>
-            {% endfor %}
+                </div>
+            {% else %}
+                <!-- === MODO NORMAL (MÚLTIPLOS CANDIDATOS) === -->
+                {% for candidato in candidatos %}
+                <div class="card {% if candidato.nome.lower() == 'voto nulo' %}card-nulo{% endif %}" 
+                     data-nome="{{ candidato.nome }}" 
+                     tabindex="0">
+                    
+                    {% if candidato.foto %}
+                        <img src="{{ url_for('static', filename=candidato.foto) }}" 
+                             alt="Foto de {{ candidato.nome }}" 
+                             class="foto-candidato"
+                             onerror="this.onerror=null; this.src='{{ logo_fallback }}';">
+                    {% else %}
+                        <div class="foto-padrao">
+                            <span>{{ candidato.nome }}</span>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="nome-candidato">{{ candidato.nome }}</div>
+                </div>
+                {% endfor %}
+            {% endif %}
             
         </div>
 
@@ -79,7 +99,7 @@
     </main>
 </div>
 
-<!-- Modal de Confirmação (igual ao do admin.html) -->
+<!-- Modal de Confirmação -->
 <div class="modal-overlay" id="modalConfirmacao">
     <div class="modal">
         <h2>Confirmar Votos</h2>
@@ -90,7 +110,7 @@
     </div>
 </div>
 
-<!-- Toast (igual ao do admin.html) -->
+<!-- Toast -->
 <div class="toast" id="toast"></div>
 
 
@@ -101,6 +121,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const gridCandidatos = document.getElementById('gridCandidatos');
     const btnConfirmar = document.getElementById('confirmar');
     const spanSelecionados = document.getElementById('numSelecionados');
+    const contadorTexto = document.getElementById('contador');
     
     const modalConfirmacao = document.getElementById('modalConfirmacao');
     const listaVotosConfirmar = document.getElementById('listaVotosConfirmar');
@@ -108,92 +129,78 @@ document.addEventListener("DOMContentLoaded", function() {
     const btnCancelarFinal = document.getElementById('btnCancelarFinal');
 
     let selecionados = [];
-    const MAX_VOTOS = 4; // Ajustado de 6 para 4
-    const NOME_VOTO_NULO = "Voto Nulo"; // Garante que o nome é consistente
+    const MAX_VOTOS = 4;
+    const NOME_VOTO_NULO = "Voto Nulo";
 
-    // --- LÓGICA DE VOTAÇÃO ---
+    // --- LÓGICA DE DETEÇÃO CHAPA ÚNICA ---
+    const ehChapaUnica = document.querySelector('.candidato-unico-card');
+    if (ehChapaUnica) {
+        // Oculta contador e botão confirmar genérico se for chapa única
+        contadorTexto.style.display = 'none';
+        btnConfirmar.style.display = 'none';
+        gridCandidatos.style.display = 'block'; // Tira o grid para centralizar o card único
+    }
 
-    // Event listener para cliques nos cards
+    // --- LÓGICA DO VOTO CHAPA ÚNICA (PLEBISCITO) ---
+    window.votarPlebiscito = function(escolha) {
+        selecionados = [escolha];
+        listaVotosConfirmar.innerHTML = "<strong>Voto selecionado:</strong><br>" + escolha;
+        modalConfirmacao.style.display = 'flex';
+    };
+
+    // --- LÓGICA DE VOTAÇÃO NORMAL ---
     gridCandidatos.addEventListener('click', (e) => {
         const card = e.target.closest('.card');
-        if (card) {
-            selecionarCard(card);
-        }
+        if (card) selecionarCard(card);
     });
 
-    // Event listener para navegação por teclado (Acessibilidade)
     gridCandidatos.addEventListener('keydown', (e) => {
         const card = e.target.closest('.card');
         if (card && (e.key === 'Enter' || e.key === ' ')) {
-            e.preventDefault(); // Impede a página de rolar com a barra de espaço
+            e.preventDefault();
             selecionarCard(card);
         }
     });
 
-    // ==========================================================
-    // LÓGICA DO VOTO NULO
-    // ==========================================================
     function selecionarCard(card) {
         const nome = card.dataset.nome;
         const index = selecionados.indexOf(nome);
         const ehNulo = nome.toLowerCase() === NOME_VOTO_NULO.toLowerCase();
 
         if (index > -1) {
-            // Já estava selecionado -> Desselecionar
             selecionados.splice(index, 1);
             card.classList.remove('selecionado');
         } else {
-            // Não estava selecionado -> Tentar selecionar
-
             if (ehNulo) {
-                // Se clicou no Voto Nulo:
-                // 1. Desmarca todos os outros
                 document.querySelectorAll('.card.selecionado').forEach(c => {
                     c.classList.remove('selecionado');
                 });
-                // 2. Limpa a lista
-                selecionados = [];
-                // 3. Adiciona apenas o Voto Nulo
-                selecionados.push(nome);
+                selecionados = [nome];
                 card.classList.add('selecionado');
                 
             } else if (selecionados.includes(NOME_VOTO_NULO)) {
-                // Se o Voto Nulo estava selecionado e clicou noutro:
-                // 1. Remove o Voto Nulo da lista
                 selecionados = [];
-                // 2. Desmarca o card do Voto Nulo
                 const cardNulo = document.querySelector('.card-nulo');
-                if (cardNulo) {
-                    cardNulo.classList.remove('selecionado');
-                }
-                // 3. Adiciona o candidato clicado
+                if (cardNulo) cardNulo.classList.remove('selecionado');
+                
                 selecionados.push(nome);
                 card.classList.add('selecionado');
 
             } else if (selecionados.length < MAX_VOTOS) {
-                // Caso normal (nem é nulo, nem nulo estava selecionado)
-                // Adiciona se houver espaço
                 selecionados.push(nome);
                 card.classList.add('selecionado');
             } else {
-                // Limite atingido
                 mostrarToast(`Só pode selecionar até ${MAX_VOTOS} candidatos.`, 'erro');
             }
         }
-        
-        // Atualiza a contagem
         spanSelecionados.textContent = selecionados.length;
     }
 
-
-    // Botão Confirmar (abre o modal)
     btnConfirmar.addEventListener('click', () => {
         if (selecionados.length === 0) {
             mostrarToast("Deve selecionar pelo menos 1 candidato.", 'erro');
             return;
         }
-        
-        // Preenche o modal com os votos
         listaVotosConfirmar.innerHTML = "<strong>Votos selecionados:</strong><br>" + selecionados.join(', ');
         modalConfirmacao.style.display = 'flex';
     });
@@ -217,9 +224,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const dados = await resposta.json();
 
             if (resposta.ok) {
-                // Sucesso!
                 modalConfirmacao.style.display = 'none';
-                // Mostra mensagem de sucesso e redireciona
                 votacaoContainer.innerHTML = `
                     <div style="text-align: center; padding-top: 50px;">
                         <h1 style='color:#49886e; margin-top: 40px;'>Obrigado!</h1>
@@ -227,13 +232,11 @@ document.addEventListener("DOMContentLoaded", function() {
                         <p>A redirecionar para a tela inicial...</p>
                     </div>
                 `;
-                // Redireciona de volta para a tela de login
                 setTimeout(() => {
-                    window.location.href = '/login-codigo'; // Atualizado para a nova rota de login por código
-                }, 4000); // 4 segundos
+                    window.location.href = '/cpf'; 
+                }, 4000);
 
             } else {
-                // Erro (Ex: sessão expirou, votou entretanto)
                 mostrarToast(dados.mensagem || "Erro ao submeter.", 'erro');
                 btnConfirmarFinal.disabled = false;
                 btnConfirmarFinal.textContent = "Sim, Confirmar";
@@ -249,11 +252,10 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 
-    // Função de Toast (para mostrar mensagens)
     function mostrarToast(mensagem, tipo = 'info') {
         const toast = document.getElementById('toast');
         toast.textContent = mensagem;
-        toast.className = 'toast mostrar ' + tipo; // Adiciona tipo (sucesso, erro, info)
+        toast.className = 'toast mostrar ' + tipo; 
         setTimeout(() => {
             toast.className = toast.className.replace('mostrar', '');
         }, 3000);
