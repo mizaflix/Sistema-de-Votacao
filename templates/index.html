@@ -4,7 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Votação</title>
+    <!-- Link para o seu CSS. Garanta que o caminho está correto. -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Estilos rápidos para o avatar padrão e feedback */
+        .foto-padrao {
+            width: 120px;
+            height: 120px;
+            border-radius: 8px;
+            background: #ccc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #555;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        .foto-candidato {
+            width: 120px;
+            height: 120px;
+            border-radius: 8px;
+            object-fit: cover; /* Garante que a foto não fique distorcida */
+        }
+    </style>
 </head>
 <body>
 
@@ -20,7 +42,7 @@
 
     <main>
         <h2 id="titulo-turno">Votação: {{ turno_atual }}</h2>
-        <p id="contador">Selecione até 6 candidatos. (Selecionados: <span id="numSelecionados">0</span>)</p>
+        <p id="contador">Selecione até 4 candidatos. (Selecionados: <span id="numSelecionados">0</span>)</p>
         
         <!-- Grelha de Candidatos -->
         <div class="grid" id="gridCandidatos">
@@ -31,15 +53,15 @@
                  data-nome="{{ candidato.nome }}" 
                  tabindex="0"> <!-- tabindex para acessibilidade -->
                 
+                <!-- 
+                Verifica se 'candidato.foto' existe. Se não (como no Voto Nulo), 
+                mostra um 'div' padrão em vez de um 'img' quebrado.
+                -->
                 {% if candidato.foto %}
-                    <!-- 
-                    *** ESTA É A LINHA CORRIGIDA ***
-                    O 'onerror' agora tem 'logo.png' entre aspas.
-                    -->
                     <img src="{{ url_for('static', filename=candidato.foto) }}" 
                          alt="Foto de {{ candidato.nome }}" 
-                         class="foto"
-                         onerror="this.src=`{{ url_for('static', filename='logo.png') }}`">
+                         class="foto-candidato"
+                         onerror="this.onerror=null; this.src='{{ url_for('static', filename='logo.png') }}';"> <!-- Fallback caso a foto não carregue -->
                 {% else %}
                     <!-- Avatar Padrão para 'Voto Nulo' ou quem não tem foto -->
                     <div class="foto-padrao">
@@ -74,8 +96,8 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-    // Não há mais lógica de CPF aqui
 
+    const votacaoContainer = document.getElementById('votacaoContainer');
     const gridCandidatos = document.getElementById('gridCandidatos');
     const btnConfirmar = document.getElementById('confirmar');
     const spanSelecionados = document.getElementById('numSelecionados');
@@ -86,7 +108,8 @@ document.addEventListener("DOMContentLoaded", function() {
     const btnCancelarFinal = document.getElementById('btnCancelarFinal');
 
     let selecionados = [];
-    const MAX_VOTOS = 6;
+    const MAX_VOTOS = 4; // Ajustado de 6 para 4
+    const NOME_VOTO_NULO = "Voto Nulo"; // Garante que o nome é consistente
 
     // --- LÓGICA DE VOTAÇÃO ---
 
@@ -107,9 +130,13 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 
+    // ==========================================================
+    // LÓGICA DO VOTO NULO
+    // ==========================================================
     function selecionarCard(card) {
         const nome = card.dataset.nome;
         const index = selecionados.indexOf(nome);
+        const ehNulo = nome.toLowerCase() === NOME_VOTO_NULO.toLowerCase();
 
         if (index > -1) {
             // Já estava selecionado -> Desselecionar
@@ -117,7 +144,35 @@ document.addEventListener("DOMContentLoaded", function() {
             card.classList.remove('selecionado');
         } else {
             // Não estava selecionado -> Tentar selecionar
-            if (selecionados.length < MAX_VOTOS) {
+
+            if (ehNulo) {
+                // Se clicou no Voto Nulo:
+                // 1. Desmarca todos os outros
+                document.querySelectorAll('.card.selecionado').forEach(c => {
+                    c.classList.remove('selecionado');
+                });
+                // 2. Limpa a lista
+                selecionados = [];
+                // 3. Adiciona apenas o Voto Nulo
+                selecionados.push(nome);
+                card.classList.add('selecionado');
+                
+            } else if (selecionados.includes(NOME_VOTO_NULO)) {
+                // Se o Voto Nulo estava selecionado e clicou noutro:
+                // 1. Remove o Voto Nulo da lista
+                selecionados = [];
+                // 2. Desmarca o card do Voto Nulo
+                const cardNulo = document.querySelector('.card-nulo');
+                if (cardNulo) {
+                    cardNulo.classList.remove('selecionado');
+                }
+                // 3. Adiciona o candidato clicado
+                selecionados.push(nome);
+                card.classList.add('selecionado');
+
+            } else if (selecionados.length < MAX_VOTOS) {
+                // Caso normal (nem é nulo, nem nulo estava selecionado)
+                // Adiciona se houver espaço
                 selecionados.push(nome);
                 card.classList.add('selecionado');
             } else {
@@ -129,6 +184,7 @@ document.addEventListener("DOMContentLoaded", function() {
         // Atualiza a contagem
         spanSelecionados.textContent = selecionados.length;
     }
+
 
     // Botão Confirmar (abre o modal)
     btnConfirmar.addEventListener('click', () => {
@@ -163,15 +219,18 @@ document.addEventListener("DOMContentLoaded", function() {
             if (resposta.ok) {
                 // Sucesso!
                 modalConfirmacao.style.display = 'none';
-                document.getElementById('votacaoContainer').innerHTML = `
-                    <h1 style='color:#49886e; margin-top: 40px;'>Obrigado!</h1>
-                    <p style='font-size: 1.2em;'>${dados.mensagem}</p>
-                    <p>Será redirecionado para a tela de login em 5 segundos.</p>
+                // Mostra mensagem de sucesso e redireciona
+                votacaoContainer.innerHTML = `
+                    <div style="text-align: center; padding-top: 50px;">
+                        <h1 style='color:#49886e; margin-top: 40px;'>Obrigado!</h1>
+                        <p style='font-size: 1.2em;'>${dados.mensagem}</p>
+                        <p>A redirecionar para a tela inicial...</p>
+                    </div>
                 `;
-                // Redireciona de volta para a tela de CPF
+                // Redireciona de volta para a tela de login
                 setTimeout(() => {
-                    window.location.href = '/cpf'; 
-                }, 5000);
+                    window.location.href = '/login-codigo'; // Atualizado para a nova rota de login por código
+                }, 4000); // 4 segundos
 
             } else {
                 // Erro (Ex: sessão expirou, votou entretanto)
@@ -204,4 +263,3 @@ document.addEventListener("DOMContentLoaded", function() {
 
 </body>
 </html>
-

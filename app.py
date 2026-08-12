@@ -64,15 +64,11 @@ class Voto(db.Model):
 
 # --- Valores Padrão (Usados apenas na primeira inicialização) ---
 PADRAO_CANDIDATOS = [
-    {"nome": "Aluizo", "foto": "aluizo.png"},
-    {"nome": "Andre", "foto": "andre.png"},
-    {"nome": "Fabio", "foto": "fabio.png"},
-    {"nome": "Guilherme", "foto": "guilherme.png"},
-    {"nome": "Lucas", "foto": "lucas.png"},
-    {"nome": "Michael", "foto": "michael.png"},
-    {"nome": "Thiago O", "foto": "thiagoo.png"},
-    {"nome": "Thiago R", "foto": "thiagor.png"},
-    {"nome": "Walisson", "foto": "walisson.png"},
+    {"nome": "Enzo", "foto": "enzo.png"},
+    {"nome": "Fabrício", "foto": "fabricio.png"},
+    {"nome": "Hélio", "foto": "helio.png"},
+    {"nome": "Cláudio", "foto": "claudio.png"},
+    {"nome": "Marcelo", "foto": "marcelo.png"},
     {"nome": "Voto Nulo", "foto": None}
 ]
 PADRAO_TURNOS = ['1º turno', '2º turno', '3° turno']
@@ -263,9 +259,8 @@ def votar():
     dados = request.get_json(force=True)
     votos_recebidos = dados.get('votos', [])
     
-    if not votos_recebidos or len(votos_recebidos) > 6:
-        return jsonify({'mensagem': 'Seleção de votos inválida (mínimo 1, máximo 6).'}), 400
-
+    if not votos_recebidos or len(votos_recebidos) > 4:
+        return jsonify({'mensagem': 'Seleção de votos inválida (mínimo 1, máximo 4).'}), 400
     cpf = session.get('cpf')
     turno = session.get('turno_atual')
 
