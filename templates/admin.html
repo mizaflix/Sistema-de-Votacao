@@ -2,196 +2,271 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Admin - Eleições</title>
-  <!-- Assumindo que tem um style.css na pasta static -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Painel Administrativo - Eleições</title>
+  
+  <!-- Fonte Moderna Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Gerador de PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
-<header>
-        <div class="logo-container">
-            <!-- Garanta que tem um logo.png na pasta static -->
-            <a href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo"></a>
+<div class="app-layout">
+    <!-- === BARRA LATERAL === -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <a href="{{ url_for('index') }}">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
+            </a>
+            <span class="badge-admin">Sistema de Apuração</span>
         </div>
-        <h1>Painel Administrativo - Sistema de Votação</h1>
-        <a href="/logout" class="admin-link">Sair</a>
-    </header>
+        
+        <nav class="sidebar-nav">
+            <a href="#resumo" class="active">📊 Resumo</a>
+            <a href="#resultados">📈 Resultados</a>
+            <a href="#configuracoes" onclick="abrirConfiguracoes(event)">⚙️ Configurações</a>
+        </nav>
 
-<main>
-
-    <!-- === SEÇÃO RESUMO === -->
-    <section>
-        <h2>Resumo Geral</h2>
-        <div class="stats">
-            <!-- Estes valores são preenchidos pelo Javascript (função carregarDados) -->
-            <div class="stat">Presentes: <span id="presentes">0</span></div>
-            <div class="stat">Já votaram: <span id="votaram">0</span></div>
-            <div class="stat">Faltam votar: <span id="faltam">0</span></div>
-            <div class="stat">Turno Atual: <span id="turno_atual">1º turno</span></div>
+        <div class="sidebar-footer">
+            <button class="btn-pdf-sidebar" onclick="gerarPDF()">📄 Exportar Ata/PDF</button>
+            <a href="/logout" class="btn-sair">🚪 Sair</a>
         </div>
-    </section>
+    </aside>
 
-    <!-- === RESULTADOS === -->
-     <section>
-<h2>Resultados da Votação</h2>
-<table id="tabela">
-  <thead>
-    <tr>
-      <th>Candidato</th>
-      <th>Votos</th>
-      <th>% (em relação aos presentes)</th>
-    </tr>
-  </thead>
-  <tbody>
-    <!-- 
-      O Python/Flask renderiza os dados iniciais aqui.
-      O Javascript (carregarDados) irá atualizar esta tabela dinamicamente.
-    -->
-    {% for nome, total in resultados.items() %}
-      <tr>
-        <td>{{ nome }}</td>
-        <td>{{ total }}</td>
-        <td>{{ porcentagens[nome] }}%</td>
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
+    <!-- === CONTEÚDO PRINCIPAL === -->
+    <div class="main-content">
+        <header class="top-header">
+            <div>
+                <h1>Painel Administrativo</h1>
+                <p class="subtitle">Acompanhamento e apuração dos votos em tempo real</p>
+            </div>
+            <button class="btn-export" onclick="gerarPDF()">🖨️ Gerar Relatório PDF</button>
+        </header>
 
-        <div id="chart-container">
-            <canvas id="grafico"></canvas>
+        <main>
+            <!-- === SEÇÃO RESUMO === -->
+            <section id="resumo" class="card-section">
+                <div class="section-header">
+                    <h2>Resumo Geral</h2>
+                    <span class="badge-turno" id="turno_badge">1º Turno</span>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-info">
+                            <span class="stat-label">Presentes</span>
+                            <span class="stat-value" id="presentes">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-info">
+                            <span class="stat-label">Já Votaram</span>
+                            <span class="stat-value" id="votaram">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-icon">⏳</div>
+                        <div class="stat-info">
+                            <span class="stat-label">Faltam Votar</span>
+                            <span class="stat-value" id="faltam">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card info">
+                        <div class="stat-icon">🔄</div>
+                        <div class="stat-info">
+                            <span class="stat-label">Turno Atual</span>
+                            <span class="stat-value text-small" id="turno_atual">1º turno</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- === RESULTADOS === -->
+            <section id="resultados" class="card-section">
+                <div class="section-header">
+                    <h2>Resultados da Votação</h2>
+                </div>
+                
+                <div class="table-responsive">
+                    <table id="tabela" class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>Candidato</th>
+                                <th>Votos</th>
+                                <th>% do Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for nome, total in resultados.items() %}
+                            <tr>
+                                <td class="font-medium">{{ nome }}</td>
+                                <td><span class="badge-votos">{{ total }}</span></td>
+                                <td><strong>{{ porcentagens[nome] }}%</strong></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="chart-container">
+                    <canvas id="grafico"></canvas>
+                </div>
+            </section>
+
+            <!-- === CONFIGURAÇÕES === -->
+            <section id="configuracoes" class="card-section config-container">
+                <div class="section-header">
+                    <h2>Configurações do Sistema</h2>
+                    <button class="config-toggle" onclick="toggleConfig(event)" title="Abrir Opções">
+                        ⚙️ Painel
+                    </button>
+                </div>
+
+                <div class="config-content" id="config-content">
+                    <div class="form-group">
+                        <label>Candidatos (separados por vírgula)</label>
+                        <textarea id="candidatos_text" rows="2" class="form-input"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Turnos (separados por vírgula)</label>
+                        <input type="text" id="turnos_text" class="form-input">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="turno_atual_select">Turno Atual</label>
+                        <select id="turno_atual_select" class="form-input"></select>
+                        <small class="hint">A alteração atualiza os gráficos automaticamente.</small>
+                    </div>
+
+                    <div class="form-group" id="novo-turno-container" style="display:none;">
+                        <label for="novo_turno_candidatos">Candidatos deste Turno Espetífico</label>
+                        <textarea id="novo_turno_candidatos" rows="2" class="form-input" placeholder="Ex: Candidato A, Candidato B"></textarea>
+                    </div>
+
+                    <div class="botoes-config">
+                        <button id="salvarConfig" class="btn-primary" onclick="salvarConfig()">💾 Salvar Configurações</button>
+                        <button class="btn-danger" onclick="resetarVotos()">🔄 Zerar Votos</button>
+                    </div>
+                    
+                    <hr class="divider">
+
+                    <div class="admin-eleitores">
+                        <h4>Controle de Eleitores</h4>
+
+                        <div class="eleitor-form">
+                            <input type="text" id="cpfNovo" placeholder="Digite o CPF" maxlength="14" oninput="mascaraCPF(this)" class="form-input">
+                            <button id="addBtn" class="btn-primary">Adicionar</button>
+                        </div>
+                        <button class="btn-secondary" onclick="carregarEleitores()">🔄 Atualizar Lista</button>
+                        <div id="msgAdd"></div>
+
+                        <div class="table-responsive">
+                            <table id="tabelaEleitores" class="custom-table">
+                                <thead>
+                                    <tr>
+                                        <th>CPF / Status no Turno</th>
+                                        <th style="text-align: right;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="listaEleitores"></tbody>
+                            </table>
+                        </div>
+                        <button class="btn-danger full-width" id="zerarTodosEleitoresBtn" onclick="zerarTodos()">Apagar Todos os Eleitores</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <footer>© 2026 Sistema de Votação da Igreja — Apuração Oficial</footer>
+    </div>
+</div>
+
+<!-- === MODELO DE IMPRESSÃO DO PDF (OCULTO NA TELA) === -->
+<div id="relatorio-pdf" class="pdf-template">
+    <div class="pdf-header">
+        <h2>RELATÓRIO OFICIAL DE APURAÇÃO</h2>
+        <p>Igreja / Sistema de Votação</p>
+        <div class="pdf-data" id="pdf-data-emissao"></div>
+    </div>
+    
+    <div class="pdf-body">
+        <div class="pdf-resumo">
+            <div><strong>Turno:</strong> <span id="pdf-turno"></span></div>
+            <div><strong>Presentes:</strong> <span id="pdf-presentes"></span></div>
+            <div><strong>Votantes:</strong> <span id="pdf-votaram"></span></div>
         </div>
-    </section>
 
-    <!-- === CONFIGURAÇÕES === -->
-    <section class="config-container">
-        <h2>Configurações</h2>
-        <button class="config-toggle" onclick="toggleConfig(event)">
-            <!-- Ícone de engrenagem -->
-            <img src="https://cdn-icons-png.flaticon.com/512/3524/3524659.png" id="config-btn" alt="Configurações">
-        </button>
+        <h3>Resultado Final</h3>
+        <table class="pdf-table">
+            <thead>
+                <tr>
+                    <th>Candidato / Opção</th>
+                    <th>Votos</th>
+                    <th>Porcentagem</th>
+                </tr>
+            </thead>
+            <tbody id="pdf-tabela-corpo"></tbody>
+        </table>
 
-        <div class="config-content" id="config-content">
-            <label>Candidatos (separados por vírgula)</label>
-            <textarea id="candidatos_text" rows="2"></textarea>
-
-            <label>Turnos (separados por vírgula)</label>
-            <input type="text" id="turnos_text">
-
-            <div class="turno-section">
-              <label for="turno_atual_select">Turno Atual</label>
-              <select id="turno_atual_select"></select>
-              <small class="hint">Ao mudar o turno, os dados são atualizados automaticamente.</small>
-            </div>
-
-            <div class="turno-extra" id="novo-turno-container" style="display:none;">
-              <label for="novo_turno_candidatos">Candidatos do 2º Turno (ou outro)</label>
-              <textarea id="novo_turno_candidatos" rows="2" placeholder="Ex: Candidato A, Candidato B"></textarea>
-              <small class="hint">Define a lista específica para este turno.</small>
-            </div>
-
-            <div class="botoes-config">
-              <button id="salvarConfig" onclick="salvarConfig()">💾 Salvar Configurações</button>
-              <button class="danger" onclick="resetarVotos()">🔄 Zerar Votos</button>
-            </div>
-            
-            <div class="admin-eleitores">
-              <h4>Controle de Eleitores</h4>
-
-              <div class="eleitor-form">
-                <!-- MÁSCARA E LIMITE DE 14 CARACTERES ADICIONADOS AQUI -->
-                <input type="text" id="cpfNovo" placeholder="Digite o CPF" maxlength="14" oninput="mascaraCPF(this)">
-                <button id="addBtn">Adicionar</button>
-              </div>
-              <button onclick="carregarEleitores()">🔄 Atualizar Lista</button>
-              <div id="msgAdd"></div>
-
-              <table id="tabelaEleitores">
-                <thead>
-                  <tr>
-                    <th>CPF (e status no turno atual)</th>
-                  </tr>
-                </thead>
-                <tbody id="listaEleitores">
-                  <!-- Eleitores são carregados via Javascript -->
-                </tbody>
-              </table>
-              <button class="danger" id="zerarTodosEleitoresBtn" onclick="zerarTodos()">Apagar Todos os Eleitores</button>
-            </div>
+        <div class="pdf-signatures">
+            <div class="sig-line">Membro da Mesa Diretora</div>
+            <div class="sig-line">Pastor / Responsável</div>
         </div>
-    </section>
-
-</main>
-
-<footer>© 2025 Sistema de Votação</footer>
+    </div>
+</div>
 
 <script>
 let grafico = null;
-let dadosAnteriores = null; // Para comparar se houve mudança
+let dadosAnteriores = null; 
+let painelAberto = false;
 
-/**
- * Função principal: Busca os dados do /admin/data e atualiza o painel
- */
 async function carregarDados(auto = false) {
   try {
     const resp = await fetch('/admin/data');
-    if (!resp.ok) {
-        console.error("Falha ao carregar dados do admin. Status:", resp.status);
-        return;
-    }
+    if (!resp.ok) return;
     const dados = await resp.json();
-
-    // Compara se dados mudaram (para futuras animações)
-    if (auto && dadosAnteriores) {
-        const mudanca = Object.keys(dados.votos).some(
-        c => !dadosAnteriores.votos[c] || dados.votos[c] !== dadosAnteriores.votos[c]
-        );
-    }
 
     dadosAnteriores = dados;
 
-    // Atualiza o resumo
     document.getElementById('presentes').textContent = dados.presentes;
     document.getElementById('votaram').textContent = dados.votaram;
     document.getElementById('faltam').textContent = dados.faltam;
     document.getElementById('turno_atual').textContent = dados.turno_atual;
+    document.getElementById('turno_badge').textContent = dados.turno_atual;
 
-    // Atualiza a tabela de resultados
     const tbody = document.querySelector('#tabela tbody');
     tbody.innerHTML = '';
     
-    // Usa dados.candidatos (que vem do servidor) como a fonte da verdade
     dados.candidatos.forEach(c => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-        <td>${c}</td>
-        <td>${dados.votos[c] || 0}</td>
-        <td>${dados.percent[c] || 0}%</td>
+        <td class="font-medium">${c}</td>
+        <td><span class="badge-votos">${dados.votos[c] || 0}</span></td>
+        <td><strong>${dados.percent[c] || 0}%</strong></td>
         `;
         tbody.appendChild(tr);
     });
 
     atualizarGrafico(dados);
     
-    // Só preenche o formulário se o painel de config estiver aberto
-    if (painelAberto) {
-        preencherFormulario(dados);
-    }
+    if (painelAberto) preencherFormulario(dados);
   } catch (err) {
       console.error("Erro ao carregar dados:", err);
   }
 }
 
-/**
- * Atualiza o gráfico Chart.js
- */
 function atualizarGrafico(dados) {
     const ctx = document.getElementById('grafico').getContext('2d');
     const labels = dados.candidatos;
     const valores = labels.map(c => dados.percent[c] || 0);
-
-    const cores = valores.map(v => v >= 50 ? '#2ecc71' : '#49886e');
 
     if (grafico) grafico.destroy();
 
@@ -200,49 +275,44 @@ function atualizarGrafico(dados) {
         data: {
             labels: labels,
             datasets: [{
-                label: '% dos votos (com base nos presentes)',
+                label: '% dos votos',
                 data: valores,
-                backgroundColor: cores,
-                borderRadius: 6,
+                backgroundColor: 'rgba(37, 99, 235, 0.85)',
+                borderColor: '#1d4ed8',
+                borderWidth: 1,
+                borderRadius: 8,
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             scales: {
                 y: {
                     beginAtZero: true,
                     max: 100,
-                    ticks: { callback: (value) => value + '%' }
+                    ticks: { callback: (v) => v + '%' }
                 }
             },
             plugins: {
                 legend: { display: false },
-                title: {
-                    display: true,
-                    text: `Resultados - ${dados.turno_atual}`,
-                    font: { size: 16 }
-                }
+                title: { display: true, text: `Gráfico de Apuração - ${dados.turno_atual}`, font: { size: 14, family: 'Inter' } }
             }
         }
     });
 }
 
-/**
- * Preenche os campos do formulário de configuração com dados atuais
- */
 function preencherFormulario(dados) {
-    // Tenta preencher o 1º turno primeiro
     if (dados.candidatos_por_turno && dados.turnos && dados.turnos.length > 0) {
         const primeiroTurno = dados.turnos[0];
         document.getElementById('candidatos_text').value = (dados.candidatos_por_turno[primeiroTurno] || []).join(', ');
     } else {
-         document.getElementById('candidatos_text').value = dados.candidatos.join(', ');
+        document.getElementById('candidatos_text').value = dados.candidatos.join(', ');
     }
     
     document.getElementById('turnos_text').value = dados.turnos.join(', ');
     
     const sel = document.getElementById('turno_atual_select');
-    sel.innerHTML = ''; // Limpa opções antigas
+    sel.innerHTML = ''; 
     dados.turnos.forEach(t => {
         const opt = document.createElement('option');
         opt.value = t;
@@ -251,21 +321,16 @@ function preencherFormulario(dados) {
         sel.appendChild(opt);
     });
 
-    // Preenche a área de candidatos do turno específico
-    const turnoAtual = dados.turno_atual;
     const perTurnoArea = document.getElementById('novo_turno_candidatos');
-    if (dados.candidatos_por_turno && dados.candidatos_por_turno[turnoAtual]) {
-        perTurnoArea.value = dados.candidatos_por_turno[turnoAtual].join(', ');
+    if (dados.candidatos_por_turno && dados.candidatos_por_turno[dados.turno_atual]) {
+        perTurnoArea.value = dados.candidatos_por_turno[dados.turno_atual].join(', ');
     } else {
-        perTurnoArea.value = ''; // Limpa se não houver dados
+        perTurnoArea.value = '';
     }
 
     atualizarVisibilidadeCampoTurno(sel.value);
 }
 
-/**
- * Salva as configurações (Turnos e Candidatos)
- */
 async function salvarConfig() {
     const turnoSelecionado = document.getElementById('turno_atual_select').value;
     const primeiroTurno = document.getElementById('turno_atual_select').options[0].value;
@@ -273,12 +338,10 @@ async function salvarConfig() {
     const body = {
         turnos_text: document.getElementById('turnos_text').value,
         turno_atual: turnoSelecionado,
-        // Sempre salva a lista do primeiro <textarea> na config do primeiro turno
         candidatos_text: document.getElementById('candidatos_text').value,
         turno_for_candidates: primeiroTurno 
     };
 
-    // Envia a primeira atualização (turnos, turno atual, candidatos 1º turno)
     const resp = await fetch('/admin/update_config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -287,8 +350,6 @@ async function salvarConfig() {
     
     let data = await resp.json();
 
-    // Se um turno diferente do 1º estiver selecionado E tiver texto,
-    // envia uma SEGUNDA requisição para salvar os candidatos daquele turno
     if (turnoSelecionado !== primeiroTurno) {
         const candidatosDoTurno = document.getElementById('novo_turno_candidatos').value.trim();
         if (candidatosDoTurno) {
@@ -300,19 +361,16 @@ async function salvarConfig() {
                     turno_for_candidates: turnoSelecionado
                 })
             });
-            data = await respTurnoExtra.json(); // Pega a última resposta
+            data = await respTurnoExtra.json();
         }
     }
 
-    alert(data.mensagem || data.erro || "Configurações salvas.");
-    carregarDados(); // Recarrega os dados para refletir as mudanças
+    alert(data.mensagem || "Configurações salvas.");
+    carregarDados();
 }
 
-/**
- * Reseta todos os votos no banco de dados
- */
 async function resetarVotos() {
-    if (!confirm('Tem certeza que deseja zerar TODOS os votos de todos os turnos? Esta ação não pode ser desfeita.')) return;
+    if (!confirm('Atenção: Deseja ZERAR todos os votos deste turno?')) return;
     try {
       const resp = await fetch('/admin/update_config', {
           method: 'POST',
@@ -320,29 +378,19 @@ async function resetarVotos() {
           body: JSON.stringify({ reset_votos: true })
       });
       const data = await resp.json();
-      alert(data.mensagem || data.erro || "Votos resetados.");
-      carregarDados(); // Recarrega os dados
+      alert(data.mensagem || "Votos resetados.");
+      carregarDados();
     } catch (e) {
         alert("Erro ao resetar votos.");
     }
 }
 
-/**
- * Mostra ou esconde o campo de candidatos do 2º/3º turno
- */
 function atualizarVisibilidadeCampoTurno(turnoSelecionado) {
     const primeiroTurno = document.getElementById('turno_atual_select').options[0].value;
     const container = document.getElementById('novo-turno-container');
-    if (turnoSelecionado !== primeiroTurno) {
-        container.style.display = 'block';
-    } else {
-        container.style.display = 'none';
-    }
+    container.style.display = (turnoSelecionado !== primeiroTurno) ? 'block' : 'none';
 }
 
-// === Event Listeners ===
-
-// Atualiza o turno atual no backend quando o select é alterado
 document.getElementById('turno_atual_select').addEventListener('change', async (e) => {
     const turno = e.target.value;
     try {
@@ -351,61 +399,48 @@ document.getElementById('turno_atual_select').addEventListener('change', async (
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ turno_atual: turno })
         });
+        
         atualizarVisibilidadeCampoTurno(turno);
-        carregarDados(); // Recarrega os dados do novo turno
+        
+        // 1. Atualiza gráfico, estatísticas e o texto do turno atual
+        await carregarDados(); 
+        
+        // 2. Atualiza a lista de eleitores com os status de voto do novo turno
+        await carregarEleitores(); 
+        
         mostrarAviso(`🔁 Turno alterado para: ${turno}`);
     } catch (e) {
         alert("Erro ao trocar de turno.");
     }
 });
 
-// Fecha o painel de config se clicar fora
-document.addEventListener("click", (event) => {
-  const configContent = document.getElementById("config-content");
-  const configButton = document.getElementById("config-btn");
-
-  if (!configContent.contains(event.target) && !configButton.contains(event.target)) {
-    configContent.classList.remove("active");
-    painelAberto = false;
-  }
-});
-
-let painelAberto = false;
-
-// Abre/Fecha o painel de config
 function toggleConfig(event) {
   if (event) event.stopPropagation();
   const configContent = document.getElementById("config-content");
   configContent.classList.toggle("active");
   painelAberto = configContent.classList.contains("active");
-  
-  // Se acabou de abrir o painel, carrega os dados e preenche o formulário
   if (painelAberto) {
       carregarDados().then(() => {
           if (dadosAnteriores) {
               preencherFormulario(dadosAnteriores);
-              carregarEleitores(); // Carrega eleitores ao abrir também
+              carregarEleitores(); 
           }
       });
   }
 }
 
-// Atualização automática a cada 5 segundos (se o painel estiver fechado)
-setInterval(() => {
-  if (!painelAberto) {
-    carregarDados(true); // 'true' para indicar que é auto-refresh
-  }
-}, 5000);
+function abrirConfiguracoes(event) {
+    const configContent = document.getElementById("config-content");
+    if (!configContent.classList.contains("active")) toggleConfig(event);
+}
 
-/**
- * Mostra um aviso rápido no canto da tela
- */
+setInterval(() => { if (!painelAberto) carregarDados(true); }, 5000);
+
 function mostrarAviso(texto) {
   let aviso = document.createElement("div");
-  aviso.className = "aviso-toast"; // Usa uma classe para estilização
+  aviso.className = "aviso-toast";
   aviso.textContent = texto;
   document.body.appendChild(aviso);
-  
   setTimeout(() => (aviso.style.opacity = "1"), 50);
   setTimeout(() => {
     aviso.style.opacity = "0";
@@ -413,103 +448,65 @@ function mostrarAviso(texto) {
   }, 2500);
 }
 
-// === Lógica dos Eleitores e Validação de CPF ===
-
-/**
- * Máscara de CPF - Formata automaticamente o campo enquanto o usuário digita
- */
 function mascaraCPF(input) {
-    let v = input.value.replace(/\D/g, ""); // Remove tudo o que não é dígito
-    v = v.substring(0, 11); // Limita a 11 dígitos
-
-    // Aplica a formatação xxx.xxx.xxx-xx
-    if (v.length > 9) {
-        v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, "$1.$2.$3-$4");
-    } else if (v.length > 6) {
-        v = v.replace(/(\d{3})(\d{3})(\d{1,3})/, "$1.$2.$3");
-    } else if (v.length > 3) {
-        v = v.replace(/(\d{3})(\d{1,3})/, "$1.$2");
-    }
-    
+    let v = input.value.replace(/\D/g, "").substring(0, 11);
+    if (v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, "$1.$2.$3-$4");
+    else if (v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{1,3})/, "$1.$2.$3");
+    else if (v.length > 3) v = v.replace(/(\d{3})(\d{1,3})/, "$1.$2");
     input.value = v;
 }
 
-/**
- * Valida se o CPF informado é matematicamente válido (dígitos verificadores).
- */
 function validarCPF(cpf) {
-    cpf = cpf.replace(/[^\d]+/g, ''); // Remove máscara para validação
-    if (cpf == '') return false;
-    
-    // Elimina CPFs com tamanho inválido ou números repetidos (ex: 111.111.111-11)
-    if (cpf.length != 11 || /^(\d)\1{10}$/.test(cpf)) return false;
-    
-    // Valida 1º dígito
+    cpf = cpf.replace(/[^\d]+/g, ''); 
+    if (cpf == '' || cpf.length != 11 || /^(\d)\1{10}$/.test(cpf)) return false;
     let add = 0;
     for (let i = 0; i < 9; i++) add += parseInt(cpf.charAt(i)) * (10 - i);
     let rev = 11 - (add % 11);
     if (rev == 10 || rev == 11) rev = 0;
     if (rev != parseInt(cpf.charAt(9))) return false;
-    
-    // Valida 2º dígito
     add = 0;
     for (let i = 0; i < 10; i++) add += parseInt(cpf.charAt(i)) * (11 - i);
     rev = 11 - (add % 11);
     if (rev == 10 || rev == 11) rev = 0;
-    if (rev != parseInt(cpf.charAt(10))) return false;
-    
-    return true;
+    return rev == parseInt(cpf.charAt(10));
 }
 
-const listaDiv = document.getElementById("listaEleitores");
-const msgAdd = document.getElementById("msgAdd");
-
 async function carregarEleitores() {
-    listaDiv.innerHTML = "<tr><td>Carregando...</td></tr>";
+    const tbody = document.getElementById("listaEleitores");
+    tbody.innerHTML = "<tr><td colspan='2'>Carregando...</td></tr>";
     try {
         const resp = await fetch("/admin/eleitores");
         const eleitores = await resp.json();
+        tbody.innerHTML = "";
 
         if (!Object.keys(eleitores).length) {
-            listaDiv.innerHTML = "<tr><td>Nenhum eleitor cadastrado.</td></tr>";
+            tbody.innerHTML = "<tr><td colspan='2'>Nenhum eleitor cadastrado.</td></tr>";
             return;
         }
 
-        const tbody = document.getElementById("listaEleitores");
-        tbody.innerHTML = "";
-        
-        // Pega o turno atual do painel (que é atualizado pelo carregarDados)
         const turnoAtual = document.getElementById('turno_atual').textContent.trim();
-
         Object.entries(eleitores).forEach(([cpf, dados]) => {
-        
-        const votouNoTurno = dados.votou_turnos?.[turnoAtual] === true;
-        
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td>
-                <span><strong>${cpf}</strong> - ${votouNoTurno ? "✅ Votou" : "❌ Não votou"}</span>
-                <div>
-                    <button class="btn-edit" onclick="editarEleitor('${cpf}')">Editar</button>
-                    <button class="btn-delete" onclick="removerEleitor('${cpf}')">Excluir</button>
-                </div>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
+            const votou = dados.votou_turnos?.[turnoAtual] === true;
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td><strong>${cpf}</strong> — ${votou ? "<span class='text-success'>✅ Votou</span>" : "<span class='text-muted'>❌ Não votou</span>"}</td>
+                <td style="text-align: right;">
+                    <button class="btn-sm btn-warning" onclick="editarEleitor('${cpf}')">Editar</button>
+                    <button class="btn-sm btn-danger" onclick="removerEleitor('${cpf}')">Excluir</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
     } catch (err) {
-        listaDiv.innerHTML = "<tr><td><span class='text-danger'>Erro ao carregar eleitores.</span></td></tr>";
+        tbody.innerHTML = "<tr><td colspan='2'>Erro ao carregar eleitores.</td></tr>";
     }
 }
 
 async function adicionarEleitor() {
     const cpfFormatado = document.getElementById("cpfNovo").value.trim();
-    const cpf = cpfFormatado.replace(/\D/g, ""); // Remove a máscara para enviar limpo pro backend
+    const cpf = cpfFormatado.replace(/\D/g, "");
 
-    if (!validarCPF(cpf)) {
-        msgAdd.textContent = "⚠️ CPF inválido. Verifique a numeração.";
-        return;
-    }
+    if (!validarCPF(cpf)) return alert("CPF inválido.");
 
     try {
         const resp = await fetch("/admin/eleitores", {
@@ -517,168 +514,214 @@ async function adicionarEleitor() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ cpf })
         });
-
         const data = await resp.json();
         if (resp.ok) {
-            msgAdd.textContent = data.mensagem;
             document.getElementById("cpfNovo").value = "";
-            carregarEleitores(); // Atualiza a lista de eleitores
-            carregarDados();    // Atualiza a contagem de presentes
-        } else {
-            msgAdd.textContent = data.erro || "Erro ao adicionar.";
-        }
-    } catch (e) {
-        msgAdd.textContent = "Erro ao conectar com o servidor.";
-    }
+            carregarEleitores(); 
+            carregarDados(); 
+        } else alert(data.erro || "Erro ao adicionar.");
+    } catch (e) { alert("Erro ao conectar."); }
 }
 
 async function editarEleitor(cpfAntigo) {
     const novoFormatado = prompt("Digite o novo CPF:", cpfAntigo);
-    if (!novoFormatado) return; // Cancelou o prompt
-    
-    const novo = novoFormatado.replace(/\D/g, ""); // Remove formatação caso a pessoa digite com pontos
-    
-    if (!validarCPF(novo)) return alert("CPF inválido. Verifique a numeração.");
-    if (novo === cpfAntigo) return;
+    if (!novoFormatado) return;
+    const novo = novoFormatado.replace(/\D/g, "");
+    if (!validarCPF(novo)) return alert("CPF inválido.");
 
-    try {
-      const resp = await fetch("/admin/eleitores", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cpf_antigo: cpfAntigo, cpf_novo: novo })
-      });
-      const data = await resp.json();
-      alert(data.mensagem || data.erro || "Operação concluída.");
-      carregarEleitores();
-    } catch(e) {
-      alert("Erro ao editar eleitor.");
-    }
+    await fetch("/admin/eleitores", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cpf_antigo: cpfAntigo, cpf_novo: novo })
+    });
+    carregarEleitores();
 }
 
 async function removerEleitor(cpf) {
     if (!confirm(`Remover eleitor ${cpf}?`)) return;
-    try {
-      const resp = await fetch("/admin/eleitores", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cpf })
-      });
-      const data = await resp.json();
-      alert(data.mensagem || data.erro || "Eleitor removido.");
-      carregarEleitores(); // Atualiza a lista
-      carregarDados();    // Atualiza a contagem de presentes
-    } catch(e) {
-        alert("Erro ao remover eleitor.");
-    }
+    await fetch("/admin/eleitores", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cpf })
+    });
+    carregarEleitores();
+    carregarDados();
 }
 
 async function zerarTodos() {
-    if (!confirm("Tem certeza que deseja apagar TODOS os eleitores? Esta ação também reseta os votos.")) return;
-    try {
-      const resp = await fetch("/admin/eleitores/all", { method: "DELETE" });
-      const data = await resp.json();
-      alert(data.mensagem);
-      carregarEleitores();
-      carregarDados(); // Atualiza 'presentes' para 0
-      // Também reseta os votos para garantir consistência
-      resetarVotos();
-    } catch(e) {
-        alert("Erro ao apagar todos os eleitores.");
-    }
+    if (!confirm("Apagar todos os eleitores da lista?")) return;
+    await fetch("/admin/eleitores/all", { method: "DELETE" });
+    carregarEleitores();
+    carregarDados();
+}
+
+// === GERADOR DE PDF DA ATA ===
+function gerarPDF() {
+    if (!dadosAnteriores) return alert("Carregando dados, tente novamente em instantes.");
+
+    document.getElementById('pdf-turno').textContent = dadosAnteriores.turno_atual;
+    document.getElementById('pdf-presentes').textContent = dadosAnteriores.presentes;
+    document.getElementById('pdf-votaram').textContent = dadosAnteriores.votaram;
+    document.getElementById('pdf-data-emissao').textContent = `Emissão: ${new Date().toLocaleString('pt-BR')}`;
+
+    const pdfTbody = document.getElementById('pdf-tabela-corpo');
+    pdfTbody.innerHTML = '';
+
+    dadosAnteriores.candidatos.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${c}</td>
+            <td>${dadosAnteriores.votos[c] || 0}</td>
+            <td>${dadosAnteriores.percent[c] || 0}%</td>
+        `;
+        pdfTbody.appendChild(tr);
+    });
+
+    const element = document.getElementById('relatorio-pdf');
+    element.style.display = 'block'; // Exibe temporariamente para captura
+
+    const opt = {
+      margin:       15,
+      filename:     `Ata_Apuracao_${dadosAnteriores.turno_atual.replace(/\s+/g, '_')}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2 },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(element).save().then(() => {
+        element.style.display = 'none'; // Oculta novamente
+    });
 }
 
 document.getElementById("addBtn").addEventListener("click", adicionarEleitor);
 document.getElementById("zerarTodosEleitoresBtn").addEventListener("click", zerarTodos);
 
-// --- Inicialização ---
-carregarDados(); // Carga inicial dos dados do painel
-
+carregarDados();
 </script>
+
 <style>
-/* Estilos básicos (pode mover para /static/style.css) */
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
-header { background-color: #fff; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-.logo-container .logo { max-height: 50px; }
-header h1 { font-size: 1.2rem; margin: 0; color: #2d5742; }
-.admin-link { text-decoration: none; background-color: #d9534f; color: white; padding: 8px 12px; border-radius: 6px; font-weight: 500; }
-main { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
-section { background-color: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
-h2 { color: #49886e; margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-.stats { display: flex; flex-wrap: wrap; gap: 20px; }
-.stat { background-color: #eef; padding: 15px; border-radius: 8px; font-size: 1.1rem; font-weight: 500; }
-.stat span { font-weight: bold; color: #2d5742; }
-#chart-container { max-height: 400px; margin-top: 20px; }
-table { width: 100%; border-collapse: collapse; }
-th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-th { background-color: #f9f9f9; }
-tr:nth-child(even) { background-color: #fdfdfd; }
-
-/* Configurações */
-.config-container { position: relative; }
-.config-toggle { position: absolute; top: 20px; right: 20px; background: none; border: none; cursor: pointer; padding: 5px; border-radius: 50%; }
-.config-toggle img { width: 24px; height: 24px; opacity: 0.6; transition: 0.3s; }
-.config-toggle:hover img { opacity: 1; transform: rotate(60deg); }
-.config-content { display: none; margin-top: 20px; border-top: 2px solid #eee; padding-top: 20px; }
-.config-content.active { display: block; }
-label { display: block; margin-top: 15px; margin-bottom: 5px; font-weight: 500; }
-input[type="text"], textarea {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    box-sizing: border-box; /* Garante que padding não afete a largura */
-}
-.turno-section { margin-top: 15px; }
-.hint { font-size: 0.9rem; color: #777; }
-.turno-extra { margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 15px; }
-.botoes-config { display: flex; gap: 10px; margin-top: 20px; }
-button {
-    background-color: #49886e; color: white; border: none; padding: 12px 18px;
-    border-radius: 6px; font-size: 1rem; cursor: pointer; transition: 0.2s;
-}
-button:hover { background-color: #3a6b57; }
-button.danger { background-color: #d32f2f; }
-button.danger:hover { background-color: #b71c1c; }
-
-/* Eleitores */
-.admin-eleitores {
-  margin-top: 2rem; background: #f7f7f7; padding: 1.5rem;
-  border-radius: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.1);
-  max-width: 800px; margin-left: auto; margin-right: auto;
-}
-.admin-eleitores h4 { text-align: center; color: #2d5742; margin-bottom: 1.2rem; }
-.eleitor-form {
-  display: flex; justify-content: center; align-items: center;
-  gap: 10px; margin-bottom: 1.5rem;
-}
-.eleitor-form input { flex: 1; max-width: 300px; }
-.eleitor-form button { background-color: #1976d2; padding: 8px 14px; }
-.eleitor-form button:hover { background-color: #145ea8; }
-#tabelaEleitores { margin-top: 10px; }
-#tabelaEleitores th { background-color: #49886e; color: white; }
-#tabelaEleitores tr:nth-child(even) { background-color: #f0f0f0; }
-#tabelaEleitores td { display: flex; justify-content: space-between; align-items: center; }
-#tabelaEleitores td div { display: flex; gap: 5px; }
-#tabelaEleitores button { font-size: 0.8rem; padding: 4px 8px; }
-.btn-edit { background-color: #f0ad4e; } .btn-edit:hover { background-color: #ec971f; }
-.btn-delete { background-color: #d9534f; } .btn-delete:hover { background-color: #c9302c; }
-#msgAdd { text-align: center; color: #2e7d32; margin-bottom: 10px; font-weight: 500; }
-#zerarTodosEleitoresBtn { background-color: #d32f2f; margin-top: 15px; }
-#zerarTodosEleitoresBtn:hover { background-color: #b71c1c; }
-
-/* Toast/Aviso */
-.aviso-toast {
-  position: fixed; bottom: -100px; right: 20px;
-  background: #2d5742; color: white; padding: 12px 20px;
-  border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-  font-size: 1rem; z-index: 9999;
-  opacity: 0; transition: all 0.5s ease;
-}
-.aviso-toast[style*="opacity: 1"] {
-    bottom: 20px;
-    opacity: 1;
+/* === DESIGN SISTEMA MODERNO === */
+:root {
+    --bg-main: #f8fafc;
+    --sidebar-bg: #0f172a;
+    --sidebar-hover: #1e293b;
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --text-dark: #0f172a;
+    --text-muted: #64748b;
+    --card-bg: #ffffff;
+    --border-color: #e2e8f0;
 }
 
+body { 
+    font-family: 'Inter', sans-serif; 
+    margin: 0; 
+    background-color: var(--bg-main); 
+    color: var(--text-dark); 
+}
+
+.app-layout { display: flex; height: 100vh; overflow: hidden; }
+
+/* Sidebar Moderna */
+.sidebar {
+    width: 260px;
+    background-color: var(--sidebar-bg);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.sidebar-logo {
+    padding: 24px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.sidebar-logo .logo { max-height: 48px; }
+.badge-admin { display: block; font-size: 0.75rem; color: #94a3b8; margin-top: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+.sidebar-nav { flex: 1; padding: 20px 12px; display: flex; flex-direction: column; gap: 4px; }
+.sidebar-nav a {
+    color: #94a3b8;
+    text-decoration: none;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+.sidebar-nav a:hover, .sidebar-nav a.active { background-color: var(--sidebar-hover); color: #fff; }
+
+.sidebar-footer { padding: 16px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; gap: 8px; }
+.btn-pdf-sidebar { background: #059669; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+.btn-pdf-sidebar:hover { background: #047857; }
+.btn-sair { text-align: center; color: #ef4444; text-decoration: none; padding: 8px; font-size: 0.9rem; font-weight: 500; }
+
+/* Main Wrapper */
+.main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+.top-header { background: #fff; padding: 20px 32px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+.top-header h1 { margin: 0; font-size: 1.5rem; font-weight: 700; }
+.subtitle { margin: 4px 0 0; color: var(--text-muted); font-size: 0.875rem; }
+
+main { padding: 32px; max-width: 1200px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+
+/* Cards Layout */
+.card-section {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; }
+.section-header h2 { margin: 0; font-size: 1.25rem; color: var(--text-dark); }
+
+/* Stats Grid */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.stat-card {
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.stat-icon { font-size: 1.8rem; background: #fff; padding: 10px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.stat-label { display: block; font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
+.stat-value { font-size: 1.5rem; font-weight: 700; color: var(--text-dark); }
+.text-small { font-size: 1rem; }
+
+/* Tabelas */
+.custom-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.custom-table th { background: #f8fafc; padding: 12px; text-align: left; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--border-color); }
+.custom-table td { padding: 14px 12px; border-bottom: 1px solid var(--border-color); font-size: 0.95rem; }
+.badge-votos { background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 99px; font-weight: 600; font-size: 0.85rem; }
+
+#chart-container { height: 320px; margin-top: 24px; }
+
+/* Form Botoes e Inputs */
+.form-group { margin-bottom: 16px; }
+.form-input { width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-family: inherit; }
+.btn-primary { background: var(--primary); color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-secondary { background: #64748b; color: #fff; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
+.btn-danger { background: #ef4444; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+.btn-export { background: #059669; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+
+/* Estilos de PDF Relatório Oculto */
+.pdf-template { display: none; padding: 30px; font-family: 'Inter', sans-serif; color: #000; background: #fff; }
+.pdf-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 20px; }
+.pdf-header h2 { margin: 0; font-size: 1.4rem; }
+.pdf-data { font-size: 0.8rem; color: #555; margin-top: 4px; }
+.pdf-resumo { display: flex; justify-content: space-between; background: #f1f5f9; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-size: 0.95rem; }
+.pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+.pdf-table th, .pdf-table td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; }
+.pdf-table th { background: #e2e8f0; }
+.pdf-signatures { display: flex; justify-content: space-around; margin-top: 60px; }
+.sig-line { border-top: 1px solid #000; width: 200px; text-align: center; padding-top: 6px; font-size: 0.85rem; }
+
+footer { text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.85rem; }
 </style>
 </body>
 </html>

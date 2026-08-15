@@ -4,70 +4,189 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Sistema de Votação</title>
+    
+    <!-- Importação de Fonte Moderna (Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Link para o seu CSS padrão (opcional, já que a página é auto-contida) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
     <style>
-        /* Estilos para a tela de login (centrada) */
+        /* === RESET BÁSICO === */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* === FUNDO E LAYOUT === */
         body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background: linear-gradient(135deg, #94d2bd, #e9d8a6);
-        }
-        .cpf-modal {
-            background: #fff;
-            padding: 30px 40px;
-            border-radius: 12px;
-            text-align: center;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-            width: 90%;
-            max-width: 400px;
-        }
-        .cpf-modal h2 {
-            margin-top: 0;
+            /* Gradiente moderno e elegante */
+            background: linear-gradient(135deg, #94d2bd, #e9d8a6);            
+            background-attachment: fixed;
             color: #333;
         }
+
+        /* === CARTÃO DE LOGIN (Estilo Glassmorphism) === */
+        .cpf-modal {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            width: 90%;
+            max-width: 420px;
+            /* Animação de entrada */
+            animation: slideUpFade 0.6s ease-out forwards;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        @keyframes slideUpFade {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* === LOGO E TEXTOS === */
+        .logo {
+            width: 70px;
+            height: 70px;
+            margin-bottom: 15px;
+            border-radius: 50%;
+            object-fit: cover;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .cpf-modal h2 {
+            margin-top: 0;
+            color: #1f2937;
+            font-size: 1.6em;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+
+        .cpf-modal p {
+            color: #6b7280;
+            font-size: 0.95em;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+
+        /* === CAMPO DE ENTRADA (INPUT) === */
+        .input-group {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
         .cpf-modal input {
             width: 100%;
-            padding: 12px;
-            margin: 15px 0;
-            border: 1px solid #ccc;
-            border-radius: 8px;
+            padding: 15px;
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
             font-size: 1.2em;
-            box-sizing: border-box; 
+            font-weight: 500;
             text-align: center;
+            color: #111827;
+            transition: all 0.3s ease;
+            outline: none;
+            letter-spacing: 2px;
         }
+
+        .cpf-modal input::placeholder {
+            color: #9ca3af;
+            font-weight: 400;
+            letter-spacing: normal;
+        }
+
+        /* Efeito ao clicar no campo (Focus Ring) */
+        .cpf-modal input:focus {
+            border-color: #49886e;
+            box-shadow: 0 0 0 4px rgba(73, 136, 110, 0.15);
+            background: #ffffff;
+        }
+
+        /* === BOTÃO DE LOGIN === */
         .cpf-modal button {
-            background-color: #49886e;
+            background: linear-gradient(135deg, #49886e 0%, #3a7553 100%);
             color: white;
-            padding: 12px 25px;
+            padding: 15px 25px;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             cursor: pointer;
-            font-size: 1em;
-            font-weight: bold;
-            transition: background 0.3s;
-            width: 100%; /* Botão a 100% */
+            font-size: 1.1em;
+            font-weight: 600;
+            width: 100%;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(73, 136, 110, 0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
         }
-        .cpf-modal button:hover {
-            background-color: #3a7553;
+
+        .cpf-modal button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(73, 136, 110, 0.4);
+            background: linear-gradient(135deg, #519a7c 0%, #3f805a 100%);
         }
+
+        .cpf-modal button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .cpf-modal button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* === MENSAGEM DE ERRO === */
         #cpf-erro {
-            color: #d9534f;
-            font-weight: bold;
-            margin-top: 10px;
-            height: 20px; /* Para não "saltar" */
+            color: #ef4444;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin-top: 15px;
+            min-height: 20px; /* Evita que o layout salte quando o erro aparece */
+            transition: opacity 0.3s;
         }
     </style>
 </head>
 <body>
 
     <div class="cpf-modal">
-        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo" style="width: 60px; height: 60px; margin-bottom: 10px;">
-        <h2>Identificação do Eleitor</h2>
-        <p>Por favor, digite seu CPF (apenas números) para votar.</p>
-        <input type="tel" id="cpfInput" placeholder="Digite seu CPF" autocomplete="off">
-        <button id="cpfBtn">Aceder</button>
+        <!-- Verifica se a imagem carrega, senão exibe um ícone genérico SVG via base64 para não quebrar o layout -->
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzQ5ODg2ZSI+PHBhdGggZD0iTTEyIDJMMiAyMnBMMjIgMjJMMTIgMnpNMTIgNmw3LjUgMTMuNUg0LjVMMTIgNnoiLz48L3N2Zz4='">
+        
+        <h2>Identificação</h2>
+        <p>Insira o seu CPF (apenas números) para aceder à cabine de votação.</p>
+        
+        <div class="input-group">
+            <input type="tel" id="cpfInput" placeholder="00000000000" autocomplete="off" maxlength="11" oninput="mascaraCPF(this)">
+        </div>
+        
+        <button id="cpfBtn">
+            Entrar
+            <!-- Ícone de seta simples em SVG para modernizar o botão -->
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+        </button>
+        
         <div id="cpf-erro"></div>
     </div>
 
@@ -76,6 +195,11 @@ document.addEventListener("DOMContentLoaded", function() {
     const cpfInput = document.getElementById('cpfInput');
     const cpfBtn = document.getElementById('cpfBtn');
     const cpfErro = document.getElementById('cpf-erro');
+
+    // Filtra para garantir que apenas números sejam digitados visualmente
+    cpfInput.addEventListener('input', function(e) {
+        this.value = this.value.replace(/\D/g, '');
+    });
 
     cpfBtn.addEventListener('click', verificarCPF);
     cpfInput.addEventListener('keyup', function(e) {
@@ -86,13 +210,16 @@ document.addEventListener("DOMContentLoaded", function() {
 
     async function verificarCPF() {
         const cpf = cpfInput.value.trim();
+        
+        // Validação básica de frontend
         if (!cpf) {
             cpfErro.textContent = "Por favor, digite o seu CPF.";
+            animarErro();
             return;
         }
 
         cpfBtn.disabled = true;
-        cpfBtn.textContent = "A verificar...";
+        cpfBtn.innerHTML = "A verificar...";
         cpfErro.textContent = "";
 
         try {
@@ -105,23 +232,53 @@ document.addEventListener("DOMContentLoaded", function() {
             const dados = await resposta.json();
 
             if (resposta.ok) {
-                // Sucesso! Redireciona para a página de votação
-                window.location.href = '/'; // Redireciona para o index
+                // Efeito visual antes de redirecionar
+                cpfBtn.style.background = "#10b981"; // Verde sucesso
+                cpfBtn.innerHTML = "Acesso Permitido ✔";
+                setTimeout(() => {
+                    window.location.href = '/'; 
+                }, 600);
             } else {
-                // Erro (CPF não existe, já votou, etc.)
                 cpfErro.textContent = dados.erro || "Erro desconhecido.";
+                animarErro();
+                resetarBotao();
             }
         } catch (err) {
             cpfErro.textContent = "Não foi possível ligar ao servidor.";
+            animarErro();
             console.error(err);
+            resetarBotao();
         }
-
-        cpfBtn.disabled = false;
-        cpfBtn.textContent = "Aceder";
     }
+
+    function resetarBotao() {
+        cpfBtn.disabled = false;
+        cpfBtn.innerHTML = `Aceder <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>`;
+    }
+
+    // Pequena animação de "shake" no erro para chamar a atenção
+    function animarErro() {
+        cpfErro.style.transform = "translateX(-5px)";
+        setTimeout(() => cpfErro.style.transform = "translateX(5px)", 100);
+        setTimeout(() => cpfErro.style.transform = "translateX(0)", 200);
+    }
+    function mascaraCPF(input) {
+    let v = input.value.replace(/\D/g, ""); // Remove tudo o que não é dígito
+    v = v.substring(0, 11); // Limita a 11 dígitos
+
+    // Aplica a formatação xxx.xxx.xxx-xx
+    if (v.length > 9) {
+        v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, "$1.$2.$3-$4");
+    } else if (v.length > 6) {
+        v = v.replace(/(\d{3})(\d{3})(\d{1,3})/, "$1.$2.$3");
+    } else if (v.length > 3) {
+        v = v.replace(/(\d{3})(\d{1,3})/, "$1.$2");
+    }
+    
+    input.value = v;
+}
 });
 </script>
 
 </body>
 </html>
-

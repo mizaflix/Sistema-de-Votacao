@@ -258,7 +258,7 @@ def votar():
     """ Regista os votos no banco de dados """
     dados = request.get_json(force=True)
     votos_recebidos = dados.get('votos', [])
-    
+        
     if not votos_recebidos or len(votos_recebidos) > 4:
         return jsonify({'mensagem': 'Seleção de votos inválida (mínimo 1, máximo 4).'}), 400
     cpf = session.get('cpf')
@@ -534,7 +534,12 @@ def admin_update_config():
                 if nome_novo.lower() not in nomes_mestres:
                     # É um candidato 100% novo, adiciona na lista mestra
                     app.logger.info(f"Adicionando novo candidato à lista mestra: {nome_novo}")
-                    lista_mestra.append({"nome": nome_novo, "foto": None})
+                    
+                    # === A MÁGICA ACONTECE AQUI ===
+                    # Transforma tudo em minúsculo e troca espaços por underline
+                    nome_foto = nome_novo.lower().replace(" ", "_") + ".png"
+                    
+                    lista_mestra.append({"nome": nome_novo, "foto": nome_foto})
                 else:
                     # Candidato já existe, verifica se o 'case' (maiúscula/minúscula) mudou
                     for candidato_mestre in lista_mestra:
@@ -577,7 +582,6 @@ def admin_update_config():
         db.session.rollback()
         app.logger.error(f"Erro em /admin/update_config: {e}")
         return jsonify({'erro': f'Erro ao salvar: {e}'}), 500
-
 # --- ROTAS DE ELEITORES (Agora no DB) ---
 
 @app.route('/admin/eleitores', methods=['GET'])
